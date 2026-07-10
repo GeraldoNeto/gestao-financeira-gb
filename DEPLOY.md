@@ -38,12 +38,12 @@ No painel do Supabase → **Authentication → URL Configuration**:
 
 ## 5. Checklist de produção
 
-- [ ] ⚠️ **Desativar o autocadastro público.** A leitura já exige um **perfil ativo**
-      (migration 0011) e as views respeitam a RLS, mas o cadastro público ainda cria
-      usuários. Em **Supabase → Authentication → Sign In / Providers → Email**, desligue
-      **"Allow new users to sign up"**. Crie os usuários em **Authentication → Users →
-      Add user** e defina o perfil na tela **Usuários** do sistema.
-      (O autocadastro já foi removido da tela de login do app.)
+- [ ] ✅ **Autocadastro com aprovação.** A pessoa se cadastra na própria tela de login;
+      a conta nasce **Pendente** (sem acesso a nada) e o administrador libera em
+      **Usuários** (muda Status para Ativo e escolhe o Perfil). A leitura/escrita exigem
+      perfil **ativo** (migrations 0011/0012), então o pendente não vê nem lê nada.
+      **Requer** "Allow new users to sign up" **LIGADO** em Supabase → Authentication →
+      Sign In / Providers → Email (a segurança fica na aprovação, não no bloqueio do cadastro).
 - [ ] **Remover o usuário de teste** `admin@teste.com` (senha conhecida). Crie o
       seu usuário real pela tela de cadastro e promova-o a administrador em
       **Usuários**; depois exclua o de teste no painel Supabase (Authentication).

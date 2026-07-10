@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
-export type AuthState = { error?: string } | undefined
+export type AuthState = { error?: string; ok?: string } | undefined
 
 export async function login(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get('email') ?? '')
@@ -25,7 +25,7 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
   const password = String(formData.get('password') ?? '')
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { nome } },
@@ -33,6 +33,14 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
 
   if (error) return { error: traduzErro(error.message) }
 
+  // Sem sessão = e-mail precisa ser confirmado antes de entrar.
+  if (!data.session) {
+    return {
+      ok: 'Cadastro realizado! Confirme seu e-mail (verifique a caixa de entrada) e aguarde a liberação do administrador.',
+    }
+  }
+
+  // Com sessão (confirmação de e-mail desligada): entra já em modo de análise.
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }
@@ -49,5 +57,7 @@ function traduzErro(msg: string): string {
   if (/user already registered/i.test(msg)) return 'Este e-mail já está cadastrado.'
   if (/password should be at least/i.test(msg)) return 'A senha deve ter ao menos 6 caracteres.'
   if (/email not confirmed/i.test(msg)) return 'Confirme seu e-mail antes de entrar.'
+  if (/signups? not allowed|signup_disabled/i.test(msg))
+    return 'O cadastro está temporariamente desativado. Fale com o administrador.'
   return msg
 }

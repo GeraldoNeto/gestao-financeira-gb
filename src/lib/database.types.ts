@@ -4,7 +4,7 @@
  *   npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts
  */
 
-export type StatusRegistro = 'ativo' | 'inativo'
+export type StatusRegistro = 'ativo' | 'inativo' | 'pendente'
 export type PerfilAcesso = 'administrador' | 'operador' | 'consulta'
 
 export type Empresa = {

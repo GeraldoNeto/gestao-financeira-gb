@@ -18,7 +18,9 @@ export async function alterarUsuario(
   const status = String(formData.get('status') ?? '')
 
   if (!PERFIS.includes(perfil as PerfilAcesso)) return { error: 'Perfil inválido.' }
-  const st: StatusRegistro = status === 'inativo' ? 'inativo' : 'ativo'
+  const st: StatusRegistro = (['ativo', 'inativo', 'pendente'].includes(status)
+    ? status
+    : 'ativo') as StatusRegistro
 
   const supabase = await createClient()
 

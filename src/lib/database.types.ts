@@ -90,6 +90,84 @@ export type Rateio = {
   data_lancamento: string
 }
 
+export type Imovel = {
+  id_imovel: number
+  nome: string
+  endereco: string | null
+  observacao: string | null
+  status: StatusRegistro
+  data_cadastro: string
+}
+
+export type Contrato = {
+  id_contrato: number
+  id_imovel: number
+  id_pessoa: number
+  unidade: string | null
+  valor_mensal: number
+  dia_vencimento: number
+  data_inicio: string
+  data_fim: string | null
+  status: StatusRegistro
+  observacao: string | null
+  data_cadastro: string
+}
+
+export type Cobranca = {
+  id_cobranca: number
+  id_contrato: number
+  competencia: string
+  vencimento: string
+  valor: number
+  status: 'pendente' | 'pago'
+  data_pagamento: string | null
+  valor_pago: number | null
+  observacao: string | null
+  usuario: string | null
+  data_lancamento: string
+}
+
+export type ContratoView = {
+  id_contrato: number
+  id_imovel: number
+  nome_imovel: string
+  unidade: string | null
+  id_pessoa: number
+  nome_locatario: string
+  valor_mensal: number
+  dia_vencimento: number
+  data_inicio: string
+  data_fim: string | null
+  status: StatusRegistro
+}
+
+export type CobrancaView = {
+  id_cobranca: number
+  id_contrato: number
+  competencia: string
+  vencimento: string
+  valor: number
+  status: 'pendente' | 'pago'
+  data_pagamento: string | null
+  valor_pago: number | null
+  observacao: string | null
+  id_imovel: number
+  nome_imovel: string
+  unidade: string | null
+  id_pessoa: number
+  nome_locatario: string
+  situacao: 'pago' | 'pendente' | 'atrasado'
+}
+
+export type ResumoMensal = {
+  competencia: string
+  qtd: number
+  qtd_pagas: number
+  previsto: number
+  recebido: number
+  pendente: number
+}
+
 export type RateioParticipante = {
   id_participante: number
   id_rateio: number
@@ -213,6 +291,9 @@ export type Database = {
       empresa_pessoa_percentual: TableShape<EmpresaPessoaPercentual>
       perfis: TableShape<Perfil>
       logs_auditoria: TableShape<LogAuditoria>
+      imoveis: TableShape<Imovel>
+      contratos: TableShape<Contrato>
+      cobrancas: TableShape<Cobranca>
     }
     Views: {
       vw_saldo_empresa: ViewShape<SaldoEmpresa>
@@ -222,6 +303,9 @@ export type Database = {
       vw_ultimos_lancamentos: ViewShape<UltimoLancamento>
       vw_extrato_empresa: ViewShape<ExtratoLinha & { id_empresa: number }>
       vw_extrato_pessoa: ViewShape<ExtratoLinha & { id_pessoa: number }>
+      vw_contratos: ViewShape<ContratoView>
+      vw_cobrancas: ViewShape<CobrancaView>
+      vw_resumo_mensal: ViewShape<ResumoMensal>
     }
     Functions: {
       fn_executar_rateio: {
@@ -234,6 +318,10 @@ export type Database = {
           p_usuario?: string
           p_data?: string
         }
+        Returns: number
+      }
+      fn_gerar_cobrancas: {
+        Args: { p_competencia: string; p_usuario?: string }
         Returns: number
       }
     }

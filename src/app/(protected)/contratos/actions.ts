@@ -1,0 +1,103 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { msgErroDB } from '@/lib/db-errors'
+import { parseValorBRL, hojeISO } from '@/lib/format'
+import type { StatusRegistro } from '@/lib/database.types'
+
+export type ContratoState = { error?: string } | undefined
+
+type ContratoInput = {
+  id_imovel: number
+  id_pessoa: number
+  unidade: string | null
+  valor_mensal: number
+  dia_vencimento: number
+  data_inicio: string
+  data_fim: string | null
+  status: StatusRegistro
+  observacao: string | null
+}
+
+function lerCampos(formData: FormData): { erro?: string; dados?: ContratoInput } {
+  const idImovel = Number(formData.get('id_imovel'))
+  const idPessoa = Number(formData.get('id_pessoa'))
+  const valor = parseValorBRL(String(formData.get('valor_mensal') ?? ''))
+  let dia = Number(formData.get('dia_vencimento'))
+  const dataInicio = String(formData.get('data_inicio') || hojeISO())
+  const dataFim = String(formData.get('data_fim') ?? '').trim() || null
+  const opt = (k: string) => {
+    const v = String(formData.get(k) ?? '').trim()
+    return v === '' ? null : v
+  }
+
+  if (!Number.isInteger(idImovel) || idImovel <= 0) return { erro: 'Selecione o imóvel.' }
+  if (!Number.isInteger(idPessoa) || idPessoa <= 0) return { erro: 'Selecione o locatário.' }
+  if (valor === null || valor <= 0) return { erro: 'Informe um valor mensal válido.' }
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31) dia = 10
+  if (dataFim && dataFim < dataInicio)
+    return { erro: 'A data final não pode ser anterior à data de início.' }
+
+  return {
+    dados: {
+      id_imovel: idImovel,
+      id_pessoa: idPessoa,
+      unidade: opt('unidade'),
+      valor_mensal: valor,
+      dia_vencimento: dia,
+      data_inicio: dataInicio,
+      data_fim: dataFim,
+      status: (formData.get('status') === 'inativo' ? 'inativo' : 'ativo') as StatusRegistro,
+      observacao: opt('observacao'),
+    },
+  }
+}
+
+export async function criarContrato(_prev: ContratoState, formData: FormData): Promise<ContratoState> {
+  const { erro, dados } = lerCampos(formData)
+  if (erro) return { error: erro }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('contratos').insert(dados!)
+  if (error) return { error: msgErroDB(error) }
+
+  revalidatePath('/', 'layout')
+  redirect('/contratos')
+}
+
+export async function atualizarContrato(
+  id: number,
+  _prev: ContratoState,
+  formData: FormData,
+): Promise<ContratoState> {
+  const { erro, dados } = lerCampos(formData)
+  if (erro) return { error: erro }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('contratos')
+    .update(dados!)
+    .eq('id_contrato', id)
+    .select('id_contrato')
+  if (error) return { error: msgErroDB(error) }
+  if (!data?.length) return { error: 'Seu perfil não tem permissão para alterar registros.' }
+
+  revalidatePath('/', 'layout')
+  redirect('/contratos')
+}
+
+export async function excluirContrato(id: number): Promise<{ error?: string } | void> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('contratos')
+    .delete()
+    .eq('id_contrato', id)
+    .select('id_contrato')
+  if (error) return { error: msgErroDB(error) }
+  if (!data?.length)
+    return { error: 'Exclusão permitida apenas para administradores (ou há cobranças vinculadas).' }
+
+  revalidatePath('/', 'layout')
+}

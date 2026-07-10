@@ -5,8 +5,11 @@ import { Sidebar, type NavItem } from '@/components/sidebar'
 // Itens do menu. `adminOnly` só aparece para o perfil administrador.
 const NAV: (NavItem & { adminOnly?: boolean })[] = [
   { href: '/dashboard', label: 'Dashboard', dica: 'Visão geral com indicadores financeiros em tempo real' },
+  { href: '/imoveis', label: 'Imóveis', dica: 'Cadastro dos imóveis alugados' },
+  { href: '/contratos', label: 'Contratos', dica: 'Contratos de aluguel (imóvel × locatário)' },
+  { href: '/cobrancas', label: 'Aluguéis', dica: 'Cobranças mensais: valores recebidos e pendentes por mês' },
+  { href: '/pessoas', label: 'Locatários', dica: 'Cadastro de pessoas físicas (locatários) e seus saldos' },
   { href: '/empresas', label: 'Empresas', dica: 'Cadastro de empresas, saldos e percentuais de rateio por pessoa' },
-  { href: '/pessoas', label: 'Pessoas Físicas', dica: 'Cadastro de pessoas físicas e seus saldos' },
   { href: '/creditos', label: 'Créditos', dica: 'Lançamentos de crédito para empresas e pessoas' },
   { href: '/debitos', label: 'Débitos', dica: 'Lançamentos de débito para empresas e pessoas' },
   { href: '/rateio', label: 'Rateio', dica: 'Distribuição automática de um crédito da empresa entre pessoas físicas' },

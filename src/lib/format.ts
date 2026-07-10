@@ -44,3 +44,16 @@ export function hojeISO(): string {
   const dd = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${mm}-${dd}`
 }
+
+/** Formata uma competência (data do 1º dia do mês, ou aaaa-mm) como MM/AAAA. */
+export function competenciaBR(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const m = /^(\d{4})-(\d{2})/.exec(iso)
+  return m ? `${m[2]}/${m[1]}` : iso
+}
+
+/** Mês atual como aaaa-mm (para input type=month). */
+export function mesAtual(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}

@@ -1,0 +1,174 @@
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { brl, dataBR, competenciaBR, mesAtual } from '@/lib/format'
+import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnPrimary, btnSecondary } from '@/components/ui'
+import { ExcluirButton } from '@/components/excluir-button'
+import { AcoesCobranca } from './acoes'
+import { gerarCobrancas, excluirCobranca } from './actions'
+import type { CobrancaView } from '@/lib/database.types'
+
+export const dynamic = 'force-dynamic'
+
+export default async function CobrancasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string; geradas?: string; erro?: string }>
+}) {
+  const sp = await searchParams
+  const mes = /^\d{4}-\d{2}$/.test(sp.mes ?? '') ? sp.mes! : mesAtual()
+  const competencia = `${mes}-01`
+
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('vw_cobrancas')
+    .select('*')
+    .eq('competencia', competencia)
+    .order('vencimento')
+    .order('nome_locatario')
+  const cobrancas = (data as CobrancaView[] | null) ?? []
+
+  const previsto = cobrancas.reduce((s, c) => s + Number(c.valor), 0)
+  const recebido = cobrancas.filter((c) => c.status === 'pago').reduce((s, c) => s + Number(c.valor), 0)
+  const pendente = previsto - recebido
+  const atrasado = cobrancas
+    .filter((c) => c.situacao === 'atrasado')
+    .reduce((s, c) => s + Number(c.valor), 0)
+
+  return (
+    <div className="mx-auto max-w-6xl">
+      <PageHeader
+        titulo="Aluguéis"
+        descricao={`Cobranças da competência ${competenciaBR(competencia)}`}
+      />
+
+      {/* Filtro de mês + gerar */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <form method="get" className="flex items-end gap-3">
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Competência (mês)
+            </span>
+            <input type="month" name="mes" defaultValue={mes} className={inputClass} />
+          </label>
+          <button type="submit" className={btnSecondary}>
+            Ver
+          </button>
+        </form>
+        <form action={gerarCobrancas}>
+          <input type="hidden" name="mes" value={mes} />
+          <button type="submit" className={btnPrimary}>
+            Gerar cobranças do mês
+          </button>
+        </form>
+      </div>
+
+      {sp.geradas !== undefined && (
+        <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          {Number(sp.geradas) > 0
+            ? `${sp.geradas} cobrança(s) gerada(s) para ${competenciaBR(competencia)}.`
+            : `Nenhuma cobrança nova — os contratos ativos já possuem cobrança em ${competenciaBR(competencia)}.`}
+        </p>
+      )}
+      {sp.erro && (
+        <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {sp.erro}
+        </p>
+      )}
+
+      {/* Resumo do mês */}
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Resumo titulo="Previsto" valor={brl(previsto)} />
+        <Resumo titulo="Recebido" valor={brl(recebido)} cor="emerald" />
+        <Resumo titulo="Pendente" valor={brl(pendente)} cor="amber" />
+        <Resumo titulo="Em atraso" valor={brl(atrasado)} cor="red" />
+      </div>
+
+      <Tabela>
+        <thead>
+          <tr>
+            <Th>Locatário</Th>
+            <Th>Imóvel / unidade</Th>
+            <Th>Vencimento</Th>
+            <Th className="text-right">Valor</Th>
+            <Th>Situação</Th>
+            <Th className="text-right">Ações</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {cobrancas.length === 0 && (
+            <VazioTabela
+              colunas={6}
+              mensagem="Nenhuma cobrança nesta competência. Use “Gerar cobranças do mês”."
+            />
+          )}
+          {cobrancas.map((c) => (
+            <tr key={c.id_cobranca} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+              <Td className="font-medium text-gray-900 dark:text-gray-100">{c.nome_locatario}</Td>
+              <Td className="text-gray-500">
+                {c.nome_imovel}
+                {c.unidade ? ` · ${c.unidade}` : ''}
+              </Td>
+              <Td>{dataBR(c.vencimento)}</Td>
+              <Td className="text-right font-semibold">{brl(c.valor)}</Td>
+              <Td>
+                <SituacaoBadge situacao={c.situacao} />
+              </Td>
+              <Td className="text-right">
+                <span className="inline-flex items-center gap-1">
+                  <AcoesCobranca id={c.id_cobranca} pago={c.status === 'pago'} />
+                  <Link
+                    href={`/cobrancas/${c.id_cobranca}?mes=${mes}`}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                  >
+                    Editar
+                  </Link>
+                  <ExcluirButton
+                    action={excluirCobranca.bind(null, c.id_cobranca)}
+                    confirmText={`Excluir a cobrança de ${c.nome_locatario} (${brl(c.valor)})?`}
+                  />
+                </span>
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </Tabela>
+    </div>
+  )
+}
+
+function Resumo({
+  titulo,
+  valor,
+  cor = 'gray',
+}: {
+  titulo: string
+  valor: string
+  cor?: 'gray' | 'emerald' | 'amber' | 'red'
+}) {
+  const cores = {
+    gray: 'text-gray-900 dark:text-gray-100',
+    emerald: 'text-emerald-600 dark:text-emerald-400',
+    amber: 'text-amber-600 dark:text-amber-400',
+    red: 'text-red-600 dark:text-red-400',
+  }
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <p className="text-sm text-gray-500">{titulo}</p>
+      <p className={`mt-1 text-lg font-semibold ${cores[cor]}`}>{valor}</p>
+    </div>
+  )
+}
+
+function SituacaoBadge({ situacao }: { situacao: CobrancaView['situacao'] }) {
+  const map = {
+    pago: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+    pendente: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+    atrasado: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  }
+  const label = { pago: 'Pago', pendente: 'Pendente', atrasado: 'Atrasado' }
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${map[situacao]}`}>
+      {label[situacao]}
+    </span>
+  )
+}

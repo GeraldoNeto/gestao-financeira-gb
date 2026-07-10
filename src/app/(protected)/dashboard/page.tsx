@@ -1,19 +1,30 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { brl, dataBR } from '@/lib/format'
+import { brl, dataBR, competenciaBR, mesAtual } from '@/lib/format'
 import { Tabela, Th, Td, VazioTabela, TituloSessao, TooltipBubble } from '@/components/ui'
-import type { Dashboard, UltimoLancamento } from '@/lib/database.types'
+import type { Dashboard, UltimoLancamento, CobrancaView } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const [{ data: dash, error }, { data: ultimos }] = await Promise.all([
+  const competenciaMes = `${mesAtual()}-01`
+  const [{ data: dash, error }, { data: ultimos }, { data: cobrancasMes }] = await Promise.all([
     supabase.from('vw_dashboard').select('*').single(),
     supabase.from('vw_ultimos_lancamentos').select('*'),
+    supabase.from('vw_cobrancas').select('valor, status, situacao').eq('competencia', competenciaMes),
   ])
 
   const d = (dash as Dashboard | null) ?? null
   const lancamentos = (ultimos as UltimoLancamento[] | null) ?? []
+
+  const cobrancas = (cobrancasMes as Pick<CobrancaView, 'valor' | 'status' | 'situacao'>[] | null) ?? []
+  const aluguel = {
+    previsto: cobrancas.reduce((s, c) => s + Number(c.valor), 0),
+    recebido: cobrancas.filter((c) => c.status === 'pago').reduce((s, c) => s + Number(c.valor), 0),
+    atrasado: cobrancas.filter((c) => c.situacao === 'atrasado').reduce((s, c) => s + Number(c.valor), 0),
+  }
+  const alugPendente = aluguel.previsto - aluguel.recebido
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -29,8 +40,27 @@ export default async function DashboardPage() {
         </p>
       )}
 
-      {/* Financeiro geral */}
+      {/* Aluguéis do mês atual */}
       <section className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <TituloSessao
+            titulo={`Aluguéis · ${competenciaBR(competenciaMes)}`}
+            dica="Cobranças de aluguel da competência (mês) atual"
+          />
+          <Link href="/cobrancas" className="text-sm text-emerald-600 hover:underline">
+            Ver aluguéis →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card titulo="Previsto no mês" valor={brl(aluguel.previsto)} descricao="Total das cobranças de aluguel da competência atual" />
+          <Card titulo="Recebido" valor={brl(aluguel.recebido)} cor="emerald" descricao="Cobranças de aluguel já pagas neste mês" />
+          <Card titulo="Pendente" valor={brl(alugPendente)} cor="amber" descricao="Cobranças de aluguel ainda não pagas neste mês" />
+          <Card titulo="Em atraso" valor={brl(aluguel.atrasado)} cor="red" descricao="Cobranças pendentes com vencimento já passado" />
+        </div>
+      </section>
+
+      {/* Financeiro geral */}
+      <section className="mt-8">
         <div className="mb-3">
           <TituloSessao titulo="Financeiro geral" dica="Totais consolidados de todo o sistema" />
         </div>

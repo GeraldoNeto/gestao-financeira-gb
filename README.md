@@ -1,6 +1,20 @@
 # Gestão Financeira GB
 
-> Sistema de controle de créditos e débitos.
+> Sistema de **gestão financeira de aluguéis** — receitas recorrentes mensais
+> (imóveis, contratos e cobranças com controle de recebido/pendente) sobre uma
+> base de controle de créditos e débitos.
+
+## Módulo de Aluguéis (contas a receber)
+
+- **Imóveis** — cadastro dos imóveis (cada imóvel pode ter vários contratos).
+- **Contratos** — imóvel × locatário (pessoa física), valor mensal, dia de
+  vencimento, período de vigência e unidade (ex.: "Apto 12", "Loja 1").
+- **Cobranças mensais** (`/cobrancas`) — por competência (mês):
+  - **Gerar cobranças do mês** cria automaticamente as cobranças dos contratos
+    ativos (`fn_gerar_cobrancas`); você pode editar/excluir antes de dar baixa.
+  - **Situação** por cobrança: *pago*, *pendente* ou *atrasado* (vencido).
+  - **Dar baixa / estornar** e resumo do mês: **previsto / recebido / pendente /
+    em atraso**. O dashboard mostra o resumo da competência atual.
 
 Gestão financeira de **empresas** e **pessoas físicas**: créditos, débitos, rateio
 automático de créditos, cálculo de saldos, relatórios e dashboard.
@@ -107,6 +121,7 @@ Migrations em `supabase/migrations/`, aplicadas em ordem:
 | `0007_ultimos_lancamentos.sql` | View de últimos lançamentos com nome da entidade | 10 |
 | `0008_percentual_rateio_ponderado.sql` | Percentual de recebimento + rateio ponderado | 7 |
 | `0009_percentual_por_empresa.sql` | Percentual por empresa×pessoa (substitui o global) | 7 |
+| `0010_alugueis.sql` | Imóveis, contratos, cobranças mensais + `fn_gerar_cobrancas` | Aluguéis |
 
 ### Modelo de dados
 

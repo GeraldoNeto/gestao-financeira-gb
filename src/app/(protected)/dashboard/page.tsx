@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { brl, competenciaBR, mesAtual } from '@/lib/format'
 import { Tabela, Th, Td, VazioTabela } from '@/components/ui'
-import type { CobrancaView, DivisaoAluguel } from '@/lib/database.types'
+import type { CobrancaView, DivisaoPrevista } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +11,7 @@ export default async function InicioPage() {
   const competencia = `${mesAtual()}-01`
   const [{ data: cobrancasMes }, { data: divisao }] = await Promise.all([
     supabase.from('vw_cobrancas').select('valor, status, situacao').eq('competencia', competencia),
-    supabase.from('vw_divisao_alugueis').select('*').eq('competencia', competencia),
+    supabase.from('vw_divisao_prevista').select('*'),
   ])
 
   const cobrancas = (cobrancasMes as Pick<CobrancaView, 'valor' | 'status' | 'situacao'>[] | null) ?? []
@@ -20,7 +20,7 @@ export default async function InicioPage() {
   const pendente = previsto - recebido
   const atrasado = cobrancas.filter((c) => c.situacao === 'atrasado').reduce((s, c) => s + Number(c.valor), 0)
 
-  const linhasDiv = (divisao as DivisaoAluguel[] | null) ?? []
+  const linhasDiv = (divisao as DivisaoPrevista[] | null) ?? []
   const porIrmao = new Map<number, { nome: string; total: number }>()
   for (const l of linhasDiv) {
     const a = porIrmao.get(l.id_pessoa) ?? { nome: l.nome_irmao, total: 0 }
@@ -64,7 +64,7 @@ export default async function InicioPage() {
           <thead>
             <tr>
               <Th>Irmão</Th>
-              <Th className="text-right">Recebe no mês</Th>
+              <Th className="text-right">Recebe por mês</Th>
             </tr>
           </thead>
           <tbody>

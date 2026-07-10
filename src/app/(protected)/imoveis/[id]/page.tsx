@@ -18,12 +18,14 @@ export default async function EditarImovelPage({ params }: { params: Promise<{ i
   if (!Number.isInteger(idNum)) notFound()
 
   const supabase = await createClient()
-  const [{ data }, { data: irmaos }, { data: percentuais }, { data: contratos }] = await Promise.all([
-    supabase.from('imoveis').select('*').eq('id_imovel', idNum).single(),
-    supabase.from('pessoas_fisicas').select('id_pessoa, nome').eq('status', 'ativo').order('nome'),
-    supabase.from('imovel_pessoa_percentual').select('id_pessoa, percentual').eq('id_imovel', idNum),
-    supabase.from('vw_contratos').select('*').eq('id_imovel', idNum).order('unidade'),
-  ])
+  const [{ data }, { data: irmaos }, { data: percentuais }, { data: contratos }, { data: divPrev }] =
+    await Promise.all([
+      supabase.from('imoveis').select('*').eq('id_imovel', idNum).single(),
+      supabase.from('pessoas_fisicas').select('id_pessoa, nome').eq('status', 'ativo').order('nome'),
+      supabase.from('imovel_pessoa_percentual').select('id_pessoa, percentual').eq('id_imovel', idNum),
+      supabase.from('vw_contratos').select('*').eq('id_imovel', idNum).order('unidade'),
+      supabase.from('vw_divisao_prevista').select('id_pessoa, nome_irmao, valor_irmao').eq('id_imovel', idNum),
+    ])
 
   const imovel = data as Imovel | null
   if (!imovel) notFound()
@@ -40,6 +42,16 @@ export default async function EditarImovelPage({ params }: { params: Promise<{ i
   }))
 
   const alugueis = (contratos as ContratoView[] | null) ?? []
+
+  // Prévia da divisão prevista deste imóvel (soma por irmão)
+  const previaDiv = new Map<number, { nome: string; total: number }>()
+  for (const l of (divPrev as { id_pessoa: number; nome_irmao: string; valor_irmao: number }[] | null) ??
+    []) {
+    const a = previaDiv.get(l.id_pessoa) ?? { nome: l.nome_irmao, total: 0 }
+    a.total += Number(l.valor_irmao)
+    previaDiv.set(l.id_pessoa, a)
+  }
+  const previaLista = [...previaDiv.values()].sort((a, b) => b.total - a.total)
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -107,6 +119,24 @@ export default async function EditarImovelPage({ params }: { params: Promise<{ i
         </p>
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <PercentuaisImovelForm idImovel={imovel.id_imovel} irmaos={irmaosPct} />
+
+          {previaLista.length > 0 && (
+            <div className="mt-6 border-t border-gray-100 pt-4 dark:border-gray-800">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+                Divisão prevista deste imóvel (por mês)
+              </p>
+              <ul className="space-y-1.5">
+                {previaLista.map((p) => (
+                  <li key={p.nome} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-300">{p.nome}</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {brl(p.total)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>

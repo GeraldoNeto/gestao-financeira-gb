@@ -131,6 +131,18 @@ export type DivisaoAluguel = {
   id_cobranca: number
 }
 
+export type DivisaoPrevista = {
+  id_imovel: number
+  nome_imovel: string
+  id_contrato: number
+  unidade: string | null
+  valor_mensal: number
+  id_pessoa: number
+  nome_irmao: string
+  percentual: number
+  valor_irmao: number
+}
+
 export type Cobranca = {
   id_cobranca: number
   id_contrato: number
@@ -322,6 +334,7 @@ export type Database = {
       vw_cobrancas: ViewShape<CobrancaView>
       vw_resumo_mensal: ViewShape<ResumoMensal>
       vw_divisao_alugueis: ViewShape<DivisaoAluguel>
+      vw_divisao_prevista: ViewShape<DivisaoPrevista>
     }
     Functions: {
       fn_executar_rateio: {

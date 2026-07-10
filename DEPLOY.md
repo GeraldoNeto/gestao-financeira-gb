@@ -38,12 +38,12 @@ No painel do Supabase → **Authentication → URL Configuration**:
 
 ## 5. Checklist de produção
 
-- [ ] ⚠️ **Restringir cadastro de novos usuários.** Hoje qualquer pessoa pode se
-      cadastrar e, como perfil *Consulta*, **ler todos os dados financeiros** (a RLS
-      libera leitura para qualquer autenticado). Antes de expor o site publicamente:
-      desative o autocadastro em **Supabase → Authentication → Providers → Email**
-      (desligue "Enable Sign Ups") e crie os usuários manualmente, **ou** ajuste as
-      políticas de RLS de `SELECT` para restringir a leitura.
+- [ ] ⚠️ **Desativar o autocadastro público.** A leitura já exige um **perfil ativo**
+      (migration 0011) e as views respeitam a RLS, mas o cadastro público ainda cria
+      usuários. Em **Supabase → Authentication → Sign In / Providers → Email**, desligue
+      **"Allow new users to sign up"**. Crie os usuários em **Authentication → Users →
+      Add user** e defina o perfil na tela **Usuários** do sistema.
+      (O autocadastro já foi removido da tela de login do app.)
 - [ ] **Remover o usuário de teste** `admin@teste.com` (senha conhecida). Crie o
       seu usuário real pela tela de cadastro e promova-o a administrador em
       **Usuários**; depois exclua o de teste no painel Supabase (Authentication).

@@ -9,23 +9,17 @@ Supabase como banco/auth.
 - Conta na [Vercel](https://vercel.com) (deploy)
 - O projeto Supabase já criado, com as migrations `0001`→`0009` aplicadas
 
-## 2. Enviar o código para o GitHub
+## 2. Código no GitHub
 
-```bash
-# na raiz do projeto (já é um repositório git)
-git add .
-git commit -m "Sistema de créditos e débitos"
-git branch -M main
-git remote add origin https://github.com/SEU-USUARIO/credito-debito.git
-git push -u origin main
-```
+✅ Já publicado: **https://github.com/GeraldoNeto/gestao-financeira-gb** (branch `main`).
 
-> O `.gitignore` já ignora `.env.local` (suas credenciais **não** vão para o Git).
-> O `.env.example` vai versionado, sem segredos.
+> O `.gitignore` ignora `.env.local` (suas credenciais **não** vão para o Git).
+> Cada `git push` futuro dispara um novo deploy na Vercel (após o passo 3).
 
 ## 3. Importar na Vercel
 
-1. Em vercel.com → **Add New → Project** → importe o repositório.
+1. Em vercel.com → **Add New → Project** → **Import** o repositório
+   `GeraldoNeto/gestao-financeira-gb` (autorize o GitHub se pedido).
 2. A Vercel detecta Next.js automaticamente (build `next build`, sem ajustes).
 3. Em **Environment Variables**, adicione:
    - `NEXT_PUBLIC_SUPABASE_URL` = `https://SEU-PROJETO.supabase.co`
@@ -44,6 +38,12 @@ No painel do Supabase → **Authentication → URL Configuration**:
 
 ## 5. Checklist de produção
 
+- [ ] ⚠️ **Restringir cadastro de novos usuários.** Hoje qualquer pessoa pode se
+      cadastrar e, como perfil *Consulta*, **ler todos os dados financeiros** (a RLS
+      libera leitura para qualquer autenticado). Antes de expor o site publicamente:
+      desative o autocadastro em **Supabase → Authentication → Providers → Email**
+      (desligue "Enable Sign Ups") e crie os usuários manualmente, **ou** ajuste as
+      políticas de RLS de `SELECT` para restringir a leitura.
 - [ ] **Remover o usuário de teste** `admin@teste.com` (senha conhecida). Crie o
       seu usuário real pela tela de cadastro e promova-o a administrador em
       **Usuários**; depois exclua o de teste no painel Supabase (Authentication).

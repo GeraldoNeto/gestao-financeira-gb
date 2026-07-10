@@ -31,7 +31,7 @@ export default async function ContratosPage({
         descricao={
           Number.isInteger(idImovel) && nomeImovel
             ? `Contratos do imóvel: ${nomeImovel}`
-            : 'Contratos de aluguel (imóvel × locatário)'
+            : 'Contratos de aluguel (por imóvel)'
         }
         acao={{ href: '/contratos/nova', label: '+ Novo contrato' }}
       />
@@ -41,7 +41,6 @@ export default async function ContratosPage({
           <tr>
             <Th>Imóvel</Th>
             <Th>Unidade</Th>
-            <Th>Locatário</Th>
             <Th className="text-right">Valor mensal</Th>
             <Th className="text-right">Venc.</Th>
             <Th>Período</Th>
@@ -51,13 +50,12 @@ export default async function ContratosPage({
         </thead>
         <tbody>
           {contratos.length === 0 && (
-            <VazioTabela colunas={8} mensagem="Nenhum contrato cadastrado ainda." />
+            <VazioTabela colunas={7} mensagem="Nenhum contrato cadastrado ainda." />
           )}
           {contratos.map((c) => (
             <tr key={c.id_contrato} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
               <Td className="font-medium text-gray-900 dark:text-gray-100">{c.nome_imovel}</Td>
               <Td>{c.unidade ?? '—'}</Td>
-              <Td>{c.nome_locatario}</Td>
               <Td className="text-right font-semibold">{brl(c.valor_mensal)}</Td>
               <Td className="text-right">dia {c.dia_vencimento}</Td>
               <Td className="text-gray-500">
@@ -76,7 +74,7 @@ export default async function ContratosPage({
                 </Link>
                 <ExcluirButton
                   action={excluirContrato.bind(null, c.id_contrato)}
-                  confirmText={`Excluir o contrato de ${c.nome_locatario} (${c.nome_imovel})?`}
+                  confirmText={`Excluir o contrato do imóvel ${c.nome_imovel}${c.unidade ? ' · ' + c.unidade : ''}?`}
                 />
               </Td>
             </tr>

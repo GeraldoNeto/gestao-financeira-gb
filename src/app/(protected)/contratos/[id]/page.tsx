@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/ui'
+import { brl } from '@/lib/format'
 import { FormContrato } from '../form'
 import { atualizarContrato } from '../actions'
 import type { Contrato } from '@/lib/database.types'
@@ -13,10 +14,9 @@ export default async function EditarContratoPage({ params }: { params: Promise<{
   if (!Number.isInteger(idNum)) notFound()
 
   const supabase = await createClient()
-  const [{ data }, { data: imoveis }, { data: pessoas }] = await Promise.all([
+  const [{ data }, { data: imoveis }] = await Promise.all([
     supabase.from('contratos').select('*').eq('id_contrato', idNum).single(),
     supabase.from('imoveis').select('id_imovel, nome').order('nome'),
-    supabase.from('pessoas_fisicas').select('id_pessoa, nome').order('nome'),
   ])
 
   const contrato = data as Contrato | null
@@ -26,18 +26,13 @@ export default async function EditarContratoPage({ params }: { params: Promise<{
     id: i.id_imovel,
     nome: i.nome,
   }))
-  const listaPessoas = ((pessoas as { id_pessoa: number; nome: string }[] | null) ?? []).map((p) => ({
-    id: p.id_pessoa,
-    nome: p.nome,
-  }))
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader titulo="Editar contrato" descricao={`${contrato.valor_mensal}`} />
+      <PageHeader titulo="Editar contrato" descricao={`Valor mensal: ${brl(contrato.valor_mensal)}`} />
       <FormContrato
         contrato={contrato}
         imoveis={listaImoveis}
-        pessoas={listaPessoas}
         action={atualizarContrato.bind(null, contrato.id_contrato)}
       />
     </div>

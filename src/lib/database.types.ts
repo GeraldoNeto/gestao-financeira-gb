@@ -102,7 +102,6 @@ export type Imovel = {
 export type Contrato = {
   id_contrato: number
   id_imovel: number
-  id_pessoa: number
   unidade: string | null
   valor_mensal: number
   dia_vencimento: number
@@ -111,6 +110,25 @@ export type Contrato = {
   status: StatusRegistro
   observacao: string | null
   data_cadastro: string
+}
+
+export type ImovelPessoaPercentual = {
+  id_imovel: number
+  id_pessoa: number
+  percentual: number
+}
+
+export type DivisaoAluguel = {
+  competencia: string
+  id_imovel: number
+  nome_imovel: string
+  id_pessoa: number
+  nome_irmao: string
+  percentual: number
+  valor_recebido: number
+  valor_irmao: number
+  data_pagamento: string | null
+  id_cobranca: number
 }
 
 export type Cobranca = {
@@ -132,8 +150,6 @@ export type ContratoView = {
   id_imovel: number
   nome_imovel: string
   unidade: string | null
-  id_pessoa: number
-  nome_locatario: string
   valor_mensal: number
   dia_vencimento: number
   data_inicio: string
@@ -154,8 +170,6 @@ export type CobrancaView = {
   id_imovel: number
   nome_imovel: string
   unidade: string | null
-  id_pessoa: number
-  nome_locatario: string
   situacao: 'pago' | 'pendente' | 'atrasado'
 }
 
@@ -294,6 +308,7 @@ export type Database = {
       imoveis: TableShape<Imovel>
       contratos: TableShape<Contrato>
       cobrancas: TableShape<Cobranca>
+      imovel_pessoa_percentual: TableShape<ImovelPessoaPercentual>
     }
     Views: {
       vw_saldo_empresa: ViewShape<SaldoEmpresa>
@@ -306,6 +321,7 @@ export type Database = {
       vw_contratos: ViewShape<ContratoView>
       vw_cobrancas: ViewShape<CobrancaView>
       vw_resumo_mensal: ViewShape<ResumoMensal>
+      vw_divisao_alugueis: ViewShape<DivisaoAluguel>
     }
     Functions: {
       fn_executar_rateio: {

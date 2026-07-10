@@ -11,7 +11,6 @@ export type ContratoState = { error?: string } | undefined
 
 type ContratoInput = {
   id_imovel: number
-  id_pessoa: number
   unidade: string | null
   valor_mensal: number
   dia_vencimento: number
@@ -23,7 +22,6 @@ type ContratoInput = {
 
 function lerCampos(formData: FormData): { erro?: string; dados?: ContratoInput } {
   const idImovel = Number(formData.get('id_imovel'))
-  const idPessoa = Number(formData.get('id_pessoa'))
   const valor = parseValorBRL(String(formData.get('valor_mensal') ?? ''))
   let dia = Number(formData.get('dia_vencimento'))
   const dataInicio = String(formData.get('data_inicio') || hojeISO())
@@ -34,7 +32,6 @@ function lerCampos(formData: FormData): { erro?: string; dados?: ContratoInput }
   }
 
   if (!Number.isInteger(idImovel) || idImovel <= 0) return { erro: 'Selecione o imóvel.' }
-  if (!Number.isInteger(idPessoa) || idPessoa <= 0) return { erro: 'Selecione o locatário.' }
   if (valor === null || valor <= 0) return { erro: 'Informe um valor mensal válido.' }
   if (!Number.isInteger(dia) || dia < 1 || dia > 31) dia = 10
   if (dataFim && dataFim < dataInicio)
@@ -43,7 +40,6 @@ function lerCampos(formData: FormData): { erro?: string; dados?: ContratoInput }
   return {
     dados: {
       id_imovel: idImovel,
-      id_pessoa: idPessoa,
       unidade: opt('unidade'),
       valor_mensal: valor,
       dia_vencimento: dia,

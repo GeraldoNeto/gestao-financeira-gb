@@ -24,7 +24,7 @@ export default async function CobrancasPage({
     .select('*')
     .eq('competencia', competencia)
     .order('vencimento')
-    .order('nome_locatario')
+    .order('nome_imovel')
   const cobrancas = (data as CobrancaView[] | null) ?? []
 
   const previsto = cobrancas.reduce((s, c) => s + Number(c.valor), 0)
@@ -86,7 +86,6 @@ export default async function CobrancasPage({
       <Tabela>
         <thead>
           <tr>
-            <Th>Locatário</Th>
             <Th>Imóvel / unidade</Th>
             <Th>Vencimento</Th>
             <Th className="text-right">Valor</Th>
@@ -97,16 +96,15 @@ export default async function CobrancasPage({
         <tbody>
           {cobrancas.length === 0 && (
             <VazioTabela
-              colunas={6}
+              colunas={5}
               mensagem="Nenhuma cobrança nesta competência. Use “Gerar cobranças do mês”."
             />
           )}
           {cobrancas.map((c) => (
             <tr key={c.id_cobranca} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-              <Td className="font-medium text-gray-900 dark:text-gray-100">{c.nome_locatario}</Td>
-              <Td className="text-gray-500">
+              <Td className="font-medium text-gray-900 dark:text-gray-100">
                 {c.nome_imovel}
-                {c.unidade ? ` · ${c.unidade}` : ''}
+                {c.unidade ? <span className="text-gray-500"> · {c.unidade}</span> : ''}
               </Td>
               <Td>{dataBR(c.vencimento)}</Td>
               <Td className="text-right font-semibold">{brl(c.valor)}</Td>
@@ -124,7 +122,7 @@ export default async function CobrancasPage({
                   </Link>
                   <ExcluirButton
                     action={excluirCobranca.bind(null, c.id_cobranca)}
-                    confirmText={`Excluir a cobrança de ${c.nome_locatario} (${brl(c.valor)})?`}
+                    confirmText={`Excluir a cobrança de ${c.nome_imovel} (${brl(c.valor)})?`}
                   />
                 </span>
               </Td>

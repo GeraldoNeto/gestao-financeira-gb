@@ -16,7 +16,7 @@ export function FormEditarCobranca({ cobranca, mes }: { cobranca: CobrancaView; 
       className="max-w-xl space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
     >
       <p className="text-sm text-gray-500">
-        {cobranca.nome_locatario} · {cobranca.nome_imovel}
+        {cobranca.nome_imovel}
         {cobranca.unidade ? ` · ${cobranca.unidade}` : ''}
       </p>
 

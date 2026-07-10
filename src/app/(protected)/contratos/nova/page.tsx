@@ -8,18 +8,15 @@ export const dynamic = 'force-dynamic'
 
 export default async function NovoContratoPage() {
   const supabase = await createClient()
-  const [{ data: imoveis }, { data: pessoas }] = await Promise.all([
-    supabase.from('imoveis').select('id_imovel, nome').eq('status', 'ativo').order('nome'),
-    supabase.from('pessoas_fisicas').select('id_pessoa, nome').eq('status', 'ativo').order('nome'),
-  ])
+  const { data: imoveis } = await supabase
+    .from('imoveis')
+    .select('id_imovel, nome')
+    .eq('status', 'ativo')
+    .order('nome')
 
   const listaImoveis = ((imoveis as { id_imovel: number; nome: string }[] | null) ?? []).map((i) => ({
     id: i.id_imovel,
     nome: i.nome,
-  }))
-  const listaPessoas = ((pessoas as { id_pessoa: number; nome: string }[] | null) ?? []).map((p) => ({
-    id: p.id_pessoa,
-    nome: p.nome,
   }))
 
   return (
@@ -30,7 +27,7 @@ export default async function NovoContratoPage() {
           Cadastre um <Link href="/imoveis/nova" className="underline">imóvel</Link> antes de criar um contrato.
         </p>
       ) : (
-        <FormContrato imoveis={listaImoveis} pessoas={listaPessoas} action={criarContrato} />
+        <FormContrato imoveis={listaImoveis} action={criarContrato} />
       )}
     </div>
   )

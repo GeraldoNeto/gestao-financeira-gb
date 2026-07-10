@@ -12,12 +12,10 @@ type Opcao = { id: number; nome: string }
 export function FormContrato({
   contrato,
   imoveis,
-  pessoas,
   action,
 }: {
   contrato?: Contrato
   imoveis: Opcao[]
-  pessoas: Opcao[]
   action: (prev: ContratoState, formData: FormData) => Promise<ContratoState>
 }) {
   const [state, formAction, pending] = useActionState<ContratoState, FormData>(action, undefined)
@@ -49,19 +47,6 @@ export function FormContrato({
           />
         </Campo>
       </div>
-
-      <Campo label="Locatário (pessoa física) *">
-        <select name="id_pessoa" required defaultValue={contrato?.id_pessoa ?? ''} className={inputClass}>
-          <option value="" disabled>
-            Selecione…
-          </option>
-          {pessoas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nome}
-            </option>
-          ))}
-        </select>
-      </Campo>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Campo label="Valor mensal (R$) *">

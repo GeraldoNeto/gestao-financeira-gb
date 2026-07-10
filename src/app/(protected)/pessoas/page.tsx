@@ -17,9 +17,9 @@ export default async function PessoasPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        titulo="Pessoas Físicas"
-        descricao="Cadastro e saldos das pessoas físicas"
-        acao={{ href: '/pessoas/nova', label: '+ Nova pessoa' }}
+        titulo="Irmãos"
+        descricao="Cadastro dos irmãos (co-donos) e seus saldos"
+        acao={{ href: '/pessoas/nova', label: '+ Novo irmão' }}
       />
 
       {error && <p className="mb-4 text-sm text-red-500">Erro ao carregar: {error.message}</p>}

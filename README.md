@@ -6,9 +6,16 @@
 
 ## Módulo de Aluguéis (contas a receber)
 
-- **Imóveis** — cadastro dos imóveis (cada imóvel pode ter vários contratos).
-- **Contratos** — imóvel × locatário (pessoa física), valor mensal, dia de
-  vencimento, período de vigência e unidade (ex.: "Apto 12", "Loja 1").
+Os imóveis são dos **irmãos** (co-donos) e o aluguel recebido de cada imóvel é
+**dividido entre eles por porcentagem**.
+
+- **Imóveis** — cadastro dos imóveis (cada imóvel pode ter vários contratos) e a
+  **divisão entre os irmãos** (percentual de cada um sobre o aluguel do imóvel).
+- **Contratos** — por imóvel: valor mensal, dia de vencimento, período de vigência
+  e unidade (ex.: "Apto 12", "Loja 1"). Sem locatário/inquilino.
+- **Irmãos** — cadastro dos co-donos (pessoas físicas) que recebem o aluguel.
+- **Divisão** (`/divisao`) — por mês, quanto cada irmão recebe do aluguel **pago**
+  (derivado de `vw_divisao_alugueis`).
 - **Cobranças mensais** (`/cobrancas`) — por competência (mês):
   - **Gerar cobranças do mês** cria automaticamente as cobranças dos contratos
     ativos (`fn_gerar_cobrancas`); você pode editar/excluir antes de dar baixa.

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { login, signup, type AuthState } from './actions'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function LoginPage() {
   const [modo, setModo] = useState<'login' | 'signup'>('login')
@@ -9,7 +10,10 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState<AuthState, FormData>(acao, undefined)
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
+    <main className="relative flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle compact />
+      </div>
       <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-xl font-bold text-white">

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { signout } from '@/app/login/actions'
 import { Tooltip } from '@/components/ui'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export type NavItem = { href: string; label: string; dica: string }
 
@@ -41,6 +42,9 @@ export function Sidebar({
 
   const rodape = (
     <div className="border-t border-gray-200 p-3 dark:border-gray-800">
+      <div className="mb-1">
+        <ThemeToggle />
+      </div>
       <div className="mb-2 px-2">
         <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{nome}</p>
         <p className="text-xs capitalize text-gray-500">{perfil}</p>
@@ -78,6 +82,9 @@ export function Sidebar({
         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           Gestão Financeira GB
         </span>
+        <div className="ml-auto">
+          <ThemeToggle compact />
+        </div>
       </header>
 
       {/* Sidebar desktop */}

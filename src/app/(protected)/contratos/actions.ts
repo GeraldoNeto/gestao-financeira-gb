@@ -60,7 +60,7 @@ export async function criarContrato(_prev: ContratoState, formData: FormData): P
   if (error) return { error: msgErroDB(error) }
 
   revalidatePath('/', 'layout')
-  redirect('/contratos')
+  redirect(`/imoveis/${dados!.id_imovel}`)
 }
 
 export async function atualizarContrato(
@@ -81,7 +81,7 @@ export async function atualizarContrato(
   if (!data?.length) return { error: 'Seu perfil não tem permissão para alterar registros.' }
 
   revalidatePath('/', 'layout')
-  redirect('/contratos')
+  redirect(`/imoveis/${dados!.id_imovel}`)
 }
 
 export async function excluirContrato(id: number): Promise<{ error?: string } | void> {

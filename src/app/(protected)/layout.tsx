@@ -5,19 +5,12 @@ import { signout } from '@/app/login/actions'
 
 // Itens do menu. `adminOnly` só aparece para o perfil administrador.
 const NAV: (NavItem & { adminOnly?: boolean })[] = [
-  { href: '/dashboard', label: 'Dashboard', dica: 'Visão geral com indicadores financeiros em tempo real' },
-  { href: '/imoveis', label: 'Imóveis', dica: 'Cadastro dos imóveis alugados' },
-  { href: '/contratos', label: 'Contratos', dica: 'Contratos de aluguel por imóvel (valor e vencimento)' },
-  { href: '/cobrancas', label: 'Aluguéis', dica: 'Cobranças mensais: valores recebidos e pendentes por mês' },
-  { href: '/divisao', label: 'Divisão', dica: 'Divisão do aluguel recebido entre os irmãos, por mês' },
-  { href: '/pessoas', label: 'Irmãos', dica: 'Cadastro dos irmãos (co-donos) e seus saldos' },
-  { href: '/empresas', label: 'Empresas', dica: 'Cadastro de empresas, saldos e percentuais de rateio por pessoa' },
-  { href: '/creditos', label: 'Créditos', dica: 'Lançamentos de crédito para empresas e pessoas' },
-  { href: '/debitos', label: 'Débitos', dica: 'Lançamentos de débito para empresas e pessoas' },
-  { href: '/rateio', label: 'Rateio', dica: 'Distribuição automática de um crédito da empresa entre pessoas físicas' },
-  { href: '/relatorios', label: 'Relatórios', dica: 'Consulta e exportação (CSV, Excel, PDF) dos dados financeiros' },
-  { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar usuários e perfis de acesso', adminOnly: true },
-  { href: '/auditoria', label: 'Auditoria', dica: 'Histórico de todas as operações no sistema', adminOnly: true },
+  { href: '/dashboard', label: 'Início', dica: 'Resumo dos aluguéis do mês' },
+  { href: '/imoveis', label: 'Imóveis', dica: 'Seus imóveis, os aluguéis de cada um e a divisão entre os irmãos' },
+  { href: '/cobrancas', label: 'Aluguéis', dica: 'Cobranças mensais: recebido e pendente por mês' },
+  { href: '/divisao', label: 'Divisão', dica: 'Quanto cada irmão recebe por mês' },
+  { href: '/pessoas', label: 'Irmãos', dica: 'Cadastro dos irmãos (co-donos)' },
+  { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
 ]
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {

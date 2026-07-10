@@ -35,7 +35,7 @@ export default async function ImoveisPage() {
             <Th>Imóvel</Th>
             <Th>Endereço</Th>
             <Th>Status</Th>
-            <Th className="text-right">Contratos ativos</Th>
+            <Th className="text-right">Aluguéis</Th>
             <Th className="text-right">Ações</Th>
           </tr>
         </thead>
@@ -51,16 +51,10 @@ export default async function ImoveisPage() {
               <Td className="text-right">{contratosPorImovel.get(i.id_imovel) ?? 0}</Td>
               <Td className="text-right">
                 <Link
-                  href={`/contratos?imovel=${i.id_imovel}`}
-                  className="mr-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                >
-                  Contratos
-                </Link>
-                <Link
                   href={`/imoveis/${i.id_imovel}`}
                   className="mr-1 rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
                 >
-                  Editar
+                  Abrir
                 </Link>
                 <ExcluirButton
                   action={excluirImovel.bind(null, i.id_imovel)}

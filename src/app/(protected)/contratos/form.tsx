@@ -13,10 +13,14 @@ export function FormContrato({
   contrato,
   imoveis,
   action,
+  defaultImovel,
+  voltarPara = '/imoveis',
 }: {
   contrato?: Contrato
   imoveis: Opcao[]
   action: (prev: ContratoState, formData: FormData) => Promise<ContratoState>
+  defaultImovel?: number
+  voltarPara?: string
 }) {
   const [state, formAction, pending] = useActionState<ContratoState, FormData>(action, undefined)
 
@@ -27,7 +31,12 @@ export function FormContrato({
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Campo label="Imóvel *">
-          <select name="id_imovel" required defaultValue={contrato?.id_imovel ?? ''} className={inputClass}>
+          <select
+            name="id_imovel"
+            required
+            defaultValue={contrato?.id_imovel ?? defaultImovel ?? ''}
+            className={inputClass}
+          >
             <option value="" disabled>
               Selecione…
             </option>
@@ -109,7 +118,7 @@ export function FormContrato({
         <button type="submit" disabled={pending} className={btnPrimary}>
           {pending ? 'Salvando…' : 'Salvar'}
         </button>
-        <Link href="/contratos" className={btnSecondary}>
+        <Link href={voltarPara} className={btnSecondary}>
           Cancelar
         </Link>
       </div>

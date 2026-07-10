@@ -1,13 +1,11 @@
 'use client'
 
-import { useActionState, useState } from 'react'
-import { login, signup, type AuthState } from './actions'
+import { useActionState } from 'react'
+import { login, type AuthState } from './actions'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function LoginPage() {
-  const [modo, setModo] = useState<'login' | 'signup'>('login')
-  const acao = modo === 'login' ? login : signup
-  const [state, formAction, pending] = useActionState<AuthState, FormData>(acao, undefined)
+  const [state, formAction, pending] = useActionState<AuthState, FormData>(login, undefined)
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
@@ -22,24 +20,10 @@ export default function LoginPage() {
           <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Gestão Financeira GB
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {modo === 'login' ? 'Entre na sua conta' : 'Crie sua conta'}
-          </p>
+          <p className="mt-1 text-sm text-gray-500">Entre na sua conta</p>
         </div>
 
         <form action={formAction} className="space-y-4">
-          {modo === 'signup' && (
-            <Campo label="Nome">
-              <input
-                name="nome"
-                type="text"
-                required
-                autoComplete="name"
-                className={inputClass}
-                placeholder="Seu nome"
-              />
-            </Campo>
-          )}
           <Campo label="E-mail">
             <input
               name="email"
@@ -56,7 +40,7 @@ export default function LoginPage() {
               type="password"
               required
               minLength={6}
-              autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
+              autoComplete="current-password"
               className={inputClass}
               placeholder="••••••••"
             />
@@ -73,19 +57,12 @@ export default function LoginPage() {
             disabled={pending}
             className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
           >
-            {pending ? 'Aguarde…' : modo === 'login' ? 'Entrar' : 'Cadastrar'}
+            {pending ? 'Aguarde…' : 'Entrar'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
-          {modo === 'login' ? 'Não tem conta?' : 'Já tem conta?'}{' '}
-          <button
-            type="button"
-            onClick={() => setModo(modo === 'login' ? 'signup' : 'login')}
-            className="font-medium text-emerald-600 hover:underline"
-          >
-            {modo === 'login' ? 'Cadastre-se' : 'Entrar'}
-          </button>
+        <p className="mt-6 text-center text-xs text-gray-400">
+          O acesso é criado pelo administrador. Fale com o responsável para obter seu login.
         </p>
       </div>
     </main>

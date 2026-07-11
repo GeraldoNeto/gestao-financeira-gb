@@ -8,8 +8,8 @@ const NAV: (NavItem & { adminOnly?: boolean })[] = [
   { href: '/dashboard', label: 'Início', dica: 'Resumo dos aluguéis do mês' },
   { href: '/imoveis', label: 'Imóveis', dica: 'Seus imóveis, os aluguéis de cada um e a divisão entre os irmãos' },
   { href: '/cobrancas', label: 'Aluguéis', dica: 'Cobranças mensais: recebido e pendente por mês' },
-  { href: '/divisao', label: 'Divisão', dica: 'Quanto cada irmão recebe por mês' },
   { href: '/pessoas', label: 'Irmãos', dica: 'Cadastro dos irmãos (co-donos)' },
+  { href: '/divisao', label: 'Divisão', dica: 'Quanto cada irmão recebe por mês' },
   { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
 ]
 

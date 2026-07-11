@@ -18,6 +18,7 @@ export type Relatorio = {
 export const RELATORIOS = [
   { id: 'alugueis', label: 'Aluguéis (cobranças do período)' },
   { id: 'divisao', label: 'Divisão entre os irmãos (recebido)' },
+  { id: 'gastos', label: 'Gastos do mês (despesas)' },
   { id: 'empresas', label: 'Empresas cadastradas' },
   { id: 'pessoas', label: 'Pessoas físicas cadastradas' },
   { id: 'creditos', label: 'Créditos (todos)' },
@@ -63,6 +64,8 @@ export async function buildRelatorio(
       return relAlugueis(supabase, de, ate)
     case 'divisao':
       return relDivisao(supabase, de, ate)
+    case 'gastos':
+      return relGastos(supabase, de, ate)
     case 'empresas':
       return relEmpresas(supabase)
     case 'pessoas':
@@ -133,6 +136,28 @@ async function relDivisao(supabase: DB, de?: string, ate?: string): Promise<Rela
       N('percentual', 'Peso (%)'),
       M('valor_recebido', 'Aluguel recebido'),
       M('valor_irmao', 'Parte do irmão'),
+    ],
+    linhas: (data ?? []) as Record<string, unknown>[],
+  }
+}
+
+async function relGastos(supabase: DB, de?: string, ate?: string): Promise<Relatorio> {
+  let q = supabase
+    .from('despesas_mes')
+    .select('*')
+    .order('competencia', { ascending: false })
+    .order('id_despesa')
+  if (de) q = q.gte('competencia', de)
+  if (ate) q = q.lte('competencia', ate)
+  const { data } = await q
+  return {
+    titulo: 'Gastos do mês (despesas)',
+    usaPeriodo: true,
+    colunas: [
+      D('competencia', 'Mês'),
+      T('descricao', 'Descrição'),
+      T('usuario', 'Usuário'),
+      M('valor', 'Valor'),
     ],
     linhas: (data ?? []) as Record<string, unknown>[],
   }

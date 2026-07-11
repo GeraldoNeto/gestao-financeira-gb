@@ -158,6 +158,15 @@ export type Cobranca = {
   data_lancamento: string
 }
 
+export type DespesaMes = {
+  id_despesa: number
+  competencia: string
+  descricao: string
+  valor: number
+  usuario: string | null
+  data_lancamento: string
+}
+
 export type ContratoView = {
   id_contrato: number
   id_imovel: number
@@ -322,6 +331,7 @@ export type Database = {
       contratos: TableShape<Contrato>
       cobrancas: TableShape<Cobranca>
       contrato_pessoa_percentual: TableShape<ContratoPessoaPercentual>
+      despesas_mes: TableShape<DespesaMes>
     }
     Views: {
       vw_saldo_empresa: ViewShape<SaldoEmpresa>

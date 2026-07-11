@@ -15,13 +15,18 @@ export default async function DivisaoPage({
   const competencia = `${mes}-01`
 
   const supabase = await createClient()
-  const [{ data: prevista }, { data: recebida }] = await Promise.all([
+  const [{ data: prevista }, { data: recebida }, { data: despesas }] = await Promise.all([
     supabase.from('vw_divisao_prevista').select('*').order('nome_imovel').order('nome_irmao'),
     supabase.from('vw_divisao_alugueis').select('id_pessoa, valor_irmao').eq('competencia', competencia),
+    supabase.from('despesas_mes').select('valor').eq('competencia', competencia),
   ])
 
   const linhasPrev = (prevista as DivisaoPrevista[] | null) ?? []
   const linhasReceb = (recebida as Pick<DivisaoAluguel, 'id_pessoa' | 'valor_irmao'>[] | null) ?? []
+  const gastos = ((despesas as { valor: number }[] | null) ?? []).reduce(
+    (s, d) => s + Number(d.valor),
+    0,
+  )
 
   // Consolida por irmão: previsto/mês (dos valores cadastrados) e recebido no mês
   const porIrmao = new Map<number, { nome: string; previsto: number; recebido: number }>()
@@ -35,10 +40,20 @@ export default async function DivisaoPage({
     a.recebido += Number(l.valor_irmao)
     porIrmao.set(l.id_pessoa, a)
   }
-  const irmaos = [...porIrmao.values()].sort((a, b) => b.previsto - a.previsto)
 
   const totalPrevisto = linhasPrev.reduce((s, l) => s + Number(l.valor_irmao), 0)
   const totalRecebido = linhasReceb.reduce((s, l) => s + Number(l.valor_irmao), 0)
+  const totalLiquido = totalRecebido - gastos
+
+  // Líquido por irmão: gastos do mês descontados proporcionalmente ao recebido
+  const round2 = (n: number) => Math.round(n * 100) / 100
+  const irmaos = [...porIrmao.values()]
+    .map((i) => ({
+      ...i,
+      liquido:
+        totalRecebido > 0 ? round2(i.recebido - gastos * (i.recebido / totalRecebido)) : 0,
+    }))
+    .sort((a, b) => b.previsto - a.previsto)
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -59,17 +74,29 @@ export default async function DivisaoPage({
         </button>
       </form>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm text-gray-500">Total previsto por mês</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">
+          <p className="text-sm text-gray-500">Previsto por mês</p>
+          <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
             {brl(totalPrevisto)}
           </p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <p className="text-sm text-gray-500">Recebido em {competenciaBR(competencia)}</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
+          <p className="mt-1 text-xl font-semibold text-emerald-600 dark:text-emerald-400">
             {brl(totalRecebido)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-sm text-gray-500">Gastos do mês</p>
+          <p className="mt-1 text-xl font-semibold text-red-600 dark:text-red-400">
+            −{brl(gastos)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-sm text-gray-500">Líquido a dividir</p>
+          <p className="mt-1 text-xl font-semibold text-emerald-600 dark:text-emerald-400">
+            {brl(totalLiquido)}
           </p>
         </div>
       </div>
@@ -82,20 +109,24 @@ export default async function DivisaoPage({
             <Th>Irmão</Th>
             <Th className="text-right">Previsto por mês</Th>
             <Th className="text-right">Recebido no mês</Th>
+            <Th className="text-right">Líquido no mês (após gastos)</Th>
           </tr>
         </thead>
         <tbody>
           {irmaos.length === 0 && (
             <VazioTabela
-              colunas={3}
+              colunas={4}
               mensagem="Cadastre o valor dos aluguéis e os percentuais dos irmãos nos imóveis."
             />
           )}
           {irmaos.map((i) => (
             <tr key={i.nome} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
               <Td className="font-medium text-gray-900 dark:text-gray-100">{i.nome}</Td>
-              <Td className="text-right font-semibold">{brl(i.previsto)}</Td>
-              <Td className="text-right text-emerald-600 dark:text-emerald-400">{brl(i.recebido)}</Td>
+              <Td className="text-right text-gray-500">{brl(i.previsto)}</Td>
+              <Td className="text-right text-gray-500">{brl(i.recebido)}</Td>
+              <Td className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                {brl(i.liquido)}
+              </Td>
             </tr>
           ))}
         </tbody>

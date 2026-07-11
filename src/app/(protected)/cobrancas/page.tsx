@@ -4,8 +4,8 @@ import { brl, dataBR, competenciaBR, mesAtual } from '@/lib/format'
 import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnPrimary, btnSecondary } from '@/components/ui'
 import { ExcluirButton } from '@/components/excluir-button'
 import { AcoesCobranca } from './acoes'
-import { gerarCobrancas, excluirCobranca } from './actions'
-import type { CobrancaView } from '@/lib/database.types'
+import { gerarCobrancas, excluirCobranca, criarDespesa, excluirDespesa } from './actions'
+import type { CobrancaView, DespesaMes } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,13 +19,21 @@ export default async function CobrancasPage({
   const competencia = `${mes}-01`
 
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('vw_cobrancas')
-    .select('*')
-    .eq('competencia', competencia)
-    .order('vencimento')
-    .order('nome_imovel')
+  const [{ data }, { data: despesasData }] = await Promise.all([
+    supabase
+      .from('vw_cobrancas')
+      .select('*')
+      .eq('competencia', competencia)
+      .order('vencimento')
+      .order('nome_imovel'),
+    supabase
+      .from('despesas_mes')
+      .select('*')
+      .eq('competencia', competencia)
+      .order('id_despesa'),
+  ])
   const cobrancas = (data as CobrancaView[] | null) ?? []
+  const despesas = (despesasData as DespesaMes[] | null) ?? []
 
   const previsto = cobrancas.reduce((s, c) => s + Number(c.valor), 0)
   const recebido = cobrancas.filter((c) => c.status === 'pago').reduce((s, c) => s + Number(c.valor), 0)
@@ -33,6 +41,8 @@ export default async function CobrancasPage({
   const atrasado = cobrancas
     .filter((c) => c.situacao === 'atrasado')
     .reduce((s, c) => s + Number(c.valor), 0)
+  const gastos = despesas.reduce((s, d) => s + Number(d.valor), 0)
+  const liquido = recebido - gastos
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -76,11 +86,13 @@ export default async function CobrancasPage({
       )}
 
       {/* Resumo do mês */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
         <Resumo titulo="Previsto" valor={brl(previsto)} />
         <Resumo titulo="Recebido" valor={brl(recebido)} cor="emerald" />
         <Resumo titulo="Pendente" valor={brl(pendente)} cor="amber" />
         <Resumo titulo="Em atraso" valor={brl(atrasado)} cor="red" />
+        <Resumo titulo="Gastos do mês" valor={brl(gastos)} cor="red" />
+        <Resumo titulo="Líquido a dividir" valor={brl(liquido)} cor="emerald" />
       </div>
 
       <Tabela>
@@ -130,6 +142,72 @@ export default async function CobrancasPage({
           ))}
         </tbody>
       </Tabela>
+
+      {/* Gastos do mês */}
+      <div className="mt-8">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Gastos do mês
+        </h2>
+        <p className="mb-4 text-sm text-gray-500">
+          Despesas de {competenciaBR(competencia)} — descontadas do total recebido antes da divisão
+          entre os irmãos
+        </p>
+
+        <form
+          action={criarDespesa.bind(null, mes)}
+          className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        >
+          <label className="block min-w-56 flex-1">
+            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Descrição
+            </span>
+            <input
+              name="descricao"
+              required
+              className={inputClass}
+              placeholder="Ex.: conserto do telhado, IPTU"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Valor (R$)
+            </span>
+            <input name="valor" required className={`${inputClass} w-36`} placeholder="0,00" />
+          </label>
+          <button type="submit" className={btnPrimary}>
+            + Lançar gasto
+          </button>
+        </form>
+
+        <Tabela>
+          <thead>
+            <tr>
+              <Th>Descrição</Th>
+              <Th className="text-right">Valor</Th>
+              <Th className="text-right">Ações</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {despesas.length === 0 && (
+              <VazioTabela colunas={3} mensagem="Nenhum gasto lançado neste mês." />
+            )}
+            {despesas.map((d) => (
+              <tr key={d.id_despesa} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                <Td className="font-medium text-gray-900 dark:text-gray-100">{d.descricao}</Td>
+                <Td className="text-right font-semibold text-red-600 dark:text-red-400">
+                  −{brl(d.valor)}
+                </Td>
+                <Td className="text-right">
+                  <ExcluirButton
+                    action={excluirDespesa.bind(null, d.id_despesa)}
+                    confirmText={`Excluir o gasto "${d.descricao}" (${brl(d.valor)})?`}
+                  />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Tabela>
+      </div>
     </div>
   )
 }

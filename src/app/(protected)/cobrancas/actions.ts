@@ -76,6 +76,38 @@ export async function excluirCobranca(id: number): Promise<{ error?: string } | 
   revalidatePath('/cobrancas')
 }
 
+/** Lança um gasto do mês (descontado do total antes da divisão). */
+export async function criarDespesa(mes: string, formData: FormData): Promise<void> {
+  const descricao = String(formData.get('descricao') ?? '').trim()
+  const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+
+  if (!descricao || valor === null || valor <= 0) {
+    redirect(`/cobrancas?mes=${mes}&erro=${encodeURIComponent('Informe a descrição e um valor válido para o gasto.')}`)
+  }
+
+  const { supabase, usuario } = await usuarioAtual()
+  const { error } = await supabase
+    .from('despesas_mes')
+    .insert({ competencia: `${mes}-01`, descricao, valor, usuario })
+  if (error) redirect(`/cobrancas?mes=${mes}&erro=${encodeURIComponent(msgErroDB(error))}`)
+
+  revalidatePath('/', 'layout')
+  redirect(`/cobrancas?mes=${mes}`)
+}
+
+export async function excluirDespesa(id: number): Promise<{ error?: string } | void> {
+  const { supabase } = await usuarioAtual()
+  const { data, error } = await supabase
+    .from('despesas_mes')
+    .delete()
+    .eq('id_despesa', id)
+    .select('id_despesa')
+  if (error) return { error: msgErroDB(error) }
+  if (!data?.length) return { error: 'Sem permissão para excluir.' }
+
+  revalidatePath('/', 'layout')
+}
+
 export type CobrancaEditState = { error?: string } | undefined
 
 /** Edita valor, vencimento e observação de uma cobrança. */

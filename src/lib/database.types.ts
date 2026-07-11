@@ -130,6 +130,7 @@ export type DivisaoAluguel = {
   valor_irmao: number
   data_pagamento: string | null
   id_cobranca: number
+  id_contrato: number
 }
 
 export type DivisaoPrevista = {
@@ -163,6 +164,7 @@ export type DespesaMes = {
   competencia: string
   descricao: string
   valor: number
+  id_contrato: number | null
   usuario: string | null
   data_lancamento: string
 }

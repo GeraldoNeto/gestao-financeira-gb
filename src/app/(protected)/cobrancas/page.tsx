@@ -44,6 +44,13 @@ export default async function CobrancasPage({
   const gastos = despesas.reduce((s, d) => s + Number(d.valor), 0)
   const liquido = recebido - gastos
 
+  // Aluguéis do mês (para vincular um gasto a um aluguel específico)
+  const opcoesAluguel = cobrancas.map((c) => ({
+    id: c.id_contrato,
+    label: c.unidade ? `${c.nome_imovel} · ${c.unidade}` : c.nome_imovel,
+  }))
+  const rotuloAluguel = new Map(opcoesAluguel.map((o) => [o.id, o.label]))
+
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
@@ -170,6 +177,19 @@ export default async function CobrancasPage({
           </label>
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Descontar de
+            </span>
+            <select name="id_contrato" defaultValue="" className={inputClass}>
+              <option value="">Todos os aluguéis (geral)</option>
+              {opcoesAluguel.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Valor (R$)
             </span>
             <input name="valor" required className={`${inputClass} w-36`} placeholder="0,00" />
@@ -183,17 +203,27 @@ export default async function CobrancasPage({
           <thead>
             <tr>
               <Th>Descrição</Th>
+              <Th>Descontar de</Th>
               <Th className="text-right">Valor</Th>
               <Th className="text-right">Ações</Th>
             </tr>
           </thead>
           <tbody>
             {despesas.length === 0 && (
-              <VazioTabela colunas={3} mensagem="Nenhum gasto lançado neste mês." />
+              <VazioTabela colunas={4} mensagem="Nenhum gasto lançado neste mês." />
             )}
             {despesas.map((d) => (
               <tr key={d.id_despesa} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                 <Td className="font-medium text-gray-900 dark:text-gray-100">{d.descricao}</Td>
+                <Td>
+                  {d.id_contrato == null ? (
+                    <span className="text-gray-500">Todos (geral)</span>
+                  ) : (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                      {rotuloAluguel.get(d.id_contrato) ?? 'Aluguel'}
+                    </span>
+                  )}
+                </Td>
                 <Td className="text-right font-semibold text-red-600 dark:text-red-400">
                   −{brl(d.valor)}
                 </Td>

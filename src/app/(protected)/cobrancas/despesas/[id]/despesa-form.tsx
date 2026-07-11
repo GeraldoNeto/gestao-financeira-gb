@@ -8,11 +8,15 @@ import type { DespesaEditState } from '../../actions'
 export function FormDespesa({
   descricao,
   valor,
+  idContrato,
+  alugueis,
   voltarPara,
   action,
 }: {
   descricao: string
   valor: string
+  idContrato: number | null
+  alugueis: { id: number; label: string }[]
   voltarPara: string
   action: (prev: DespesaEditState, formData: FormData) => Promise<DespesaEditState>
 }) {
@@ -34,6 +38,16 @@ export function FormDespesa({
           className={inputClass}
           placeholder="Ex.: conserto do telhado, IPTU"
         />
+      </Campo>
+      <Campo label="Descontar de">
+        <select name="id_contrato" defaultValue={idContrato ?? ''} className={inputClass}>
+          <option value="">Todos os aluguéis (geral)</option>
+          {alugueis.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.label}
+            </option>
+          ))}
+        </select>
       </Campo>
       <Campo label="Valor (R$) *">
         <input name="valor" required defaultValue={valor} className={inputClass} placeholder="0,00" />

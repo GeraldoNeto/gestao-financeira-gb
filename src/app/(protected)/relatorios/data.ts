@@ -1,6 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/lib/database.types'
+import type { Database, DespesaMes } from '@/lib/database.types'
 import { brl, dataBR } from '@/lib/format'
 
 type DB = SupabaseClient<Database>
@@ -102,6 +102,7 @@ export type PrestacaoDespesa = {
   descricao: string
   data_lancamento: string
   valor: number
+  descontar_de: string
 }
 export type PrestacaoIrmao = {
   nome: string
@@ -122,6 +123,88 @@ export type DadosPrestacao = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+export type RateioIrmao = {
+  id_pessoa: number
+  nome: string
+  recebido: number
+  despesa: number
+  liquido: number
+}
+
+/**
+ * Rateio do líquido entre os irmãos a partir do que foi recebido e das despesas.
+ * - Despesa GERAL (id_contrato = null): rateada no total recebido, proporcional
+ *   ao que cada irmão recebeu no período.
+ * - Despesa DE UM ALUGUEL (id_contrato): descontada só daquele aluguel, dividida
+ *   entre os irmãos daquele aluguel na proporção que recebem dele. O que exceder
+ *   o recebido daquele aluguel vira despesa geral (opção A).
+ */
+export function calcularRateio(
+  divRows: { id_pessoa: number; nome_irmao: string; id_contrato: number; valor_irmao: number }[],
+  despRows: { id_contrato: number | null; valor: number }[],
+): { irmaos: RateioIrmao[]; totalRecebido: number; totalDespesas: number; liquido: number } {
+  const grossByIrmao = new Map<number, { nome: string; recebido: number }>()
+  const recByContrato = new Map<number, number>()
+  const recByIrmaoContrato = new Map<string, number>()
+
+  for (const r of divRows) {
+    const v = Number(r.valor_irmao)
+    const g = grossByIrmao.get(r.id_pessoa) ?? { nome: r.nome_irmao, recebido: 0 }
+    g.recebido += v
+    grossByIrmao.set(r.id_pessoa, g)
+    recByContrato.set(r.id_contrato, (recByContrato.get(r.id_contrato) ?? 0) + v)
+    const k = `${r.id_pessoa}:${r.id_contrato}`
+    recByIrmaoContrato.set(k, (recByIrmaoContrato.get(k) ?? 0) + v)
+  }
+
+  const totalRecebido = [...grossByIrmao.values()].reduce((s, g) => s + g.recebido, 0)
+  const totalDespesas = despRows.reduce((s, d) => s + Number(d.valor), 0)
+
+  // Separa despesas gerais das vinculadas a um aluguel
+  let geral = 0
+  const tiedByContrato = new Map<number, number>()
+  for (const d of despRows) {
+    if (d.id_contrato == null) geral += Number(d.valor)
+    else tiedByContrato.set(d.id_contrato, (tiedByContrato.get(d.id_contrato) ?? 0) + Number(d.valor))
+  }
+
+  const despByIrmao = new Map<number, number>()
+  const addDesp = (id: number, v: number) => despByIrmao.set(id, (despByIrmao.get(id) ?? 0) + v)
+
+  // Despesas de um aluguel: descontam só daquele aluguel; excedente vira geral
+  for (const [idContrato, E] of tiedByContrato) {
+    const R = recByContrato.get(idContrato) ?? 0
+    const efetivo = Math.min(E, R)
+    geral += E - efetivo // sobra vira geral (opção A)
+    if (R > 0 && efetivo > 0) {
+      for (const id of grossByIrmao.keys()) {
+        const share = recByIrmaoContrato.get(`${id}:${idContrato}`) ?? 0
+        if (share > 0) addDesp(id, efetivo * (share / R))
+      }
+    }
+  }
+
+  // Despesa geral: proporcional ao total recebido por cada irmão
+  if (totalRecebido > 0 && geral > 0) {
+    for (const [id, g] of grossByIrmao) addDesp(id, geral * (g.recebido / totalRecebido))
+  }
+
+  const irmaos: RateioIrmao[] = [...grossByIrmao.entries()]
+    .map(([id, g]) => {
+      const despesa = round2(despByIrmao.get(id) ?? 0)
+      return {
+        id_pessoa: id,
+        nome: g.nome,
+        recebido: round2(g.recebido),
+        despesa,
+        liquido: round2(g.recebido - despesa),
+      }
+    })
+    .sort((a, b) => b.recebido - a.recebido)
+
+  return { irmaos, totalRecebido, totalDespesas, liquido: round2(totalRecebido - totalDespesas) }
+}
+
 /**
  * Reúne, para o período (competência), tudo o que a prestação de contas precisa:
  * aluguéis recebidos, despesas e o rateio do líquido entre os irmãos.
@@ -136,12 +219,12 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
     .order('nome_imovel')
   let qDesp = supabase
     .from('despesas_mes')
-    .select('competencia, descricao, data_lancamento, valor')
+    .select('competencia, descricao, data_lancamento, valor, id_contrato')
     .order('competencia')
     .order('id_despesa')
   let qDiv = supabase
     .from('vw_divisao_alugueis')
-    .select('id_pessoa, nome_irmao, valor_irmao')
+    .select('id_pessoa, nome_irmao, valor_irmao, id_contrato')
   if (de) {
     qCob = qCob.gte('competencia', de)
     qDesp = qDesp.gte('competencia', de)
@@ -153,42 +236,47 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
     qDiv = qDiv.lte('competencia', ate)
   }
 
-  const [{ data: cob }, { data: desp }, { data: div }] = await Promise.all([qCob, qDesp, qDiv])
+  const [{ data: cob }, { data: desp }, { data: div }, { data: contratos }] = await Promise.all([
+    qCob,
+    qDesp,
+    qDiv,
+    supabase.from('vw_contratos').select('id_contrato, nome_imovel, unidade'),
+  ])
+
+  const rotuloContrato = new Map(
+    ((contratos as { id_contrato: number; nome_imovel: string; unidade: string | null }[] | null) ?? []).map(
+      (c) => [c.id_contrato, c.unidade ? `${c.nome_imovel} · ${c.unidade}` : c.nome_imovel],
+    ),
+  )
 
   const recebidos = ((cob as PrestacaoRecebido[] | null) ?? []).map((r) => ({
     ...r,
     valor: Number(r.valor),
   }))
-  const despesas = ((desp as PrestacaoDespesa[] | null) ?? []).map((d) => ({
-    ...d,
+  const despRaw =
+    (desp as (Omit<PrestacaoDespesa, 'descontar_de'> & { id_contrato: number | null })[] | null) ?? []
+  const despesas: PrestacaoDespesa[] = despRaw.map((d) => ({
+    competencia: d.competencia,
+    descricao: d.descricao,
+    data_lancamento: d.data_lancamento,
     valor: Number(d.valor),
+    descontar_de: d.id_contrato == null ? 'Todos (geral)' : rotuloContrato.get(d.id_contrato) ?? 'Aluguel',
   }))
+  const despParaRateio = despRaw.map((d) => ({ id_contrato: d.id_contrato, valor: Number(d.valor) }))
 
-  const totalRecebido = recebidos.reduce((s, r) => s + r.valor, 0)
-  const totalDespesas = despesas.reduce((s, d) => s + d.valor, 0)
+  const totalRecebido = round2(recebidos.reduce((s, r) => s + r.valor, 0))
+  const totalDespesas = round2(despesas.reduce((s, d) => s + d.valor, 0))
   const liquido = round2(totalRecebido - totalDespesas)
 
-  // Recebido por irmão (soma das partes de cada aluguel pago no período)
-  const porIrmao = new Map<number, { nome: string; recebido: number }>()
-  for (const l of (div as { id_pessoa: number; nome_irmao: string; valor_irmao: number }[] | null) ??
-    []) {
-    const a = porIrmao.get(l.id_pessoa) ?? { nome: l.nome_irmao, recebido: 0 }
-    a.recebido += Number(l.valor_irmao)
-    porIrmao.set(l.id_pessoa, a)
-  }
-
-  const irmaos: PrestacaoIrmao[] = [...porIrmao.values()]
-    .map((i) => {
-      const despesaRateada =
-        totalRecebido > 0 ? round2(totalDespesas * (i.recebido / totalRecebido)) : 0
-      return {
-        nome: i.nome,
-        recebido: round2(i.recebido),
-        despesa_rateada: despesaRateada,
-        liquido: round2(i.recebido - despesaRateada),
-      }
-    })
-    .sort((a, b) => b.recebido - a.recebido)
+  const divRows =
+    (div as { id_pessoa: number; nome_irmao: string; valor_irmao: number; id_contrato: number }[] | null) ??
+    []
+  const irmaos: PrestacaoIrmao[] = calcularRateio(divRows, despParaRateio).irmaos.map((i) => ({
+    nome: i.nome,
+    recebido: i.recebido,
+    despesa_rateada: i.despesa,
+    liquido: i.liquido,
+  }))
 
   return { de, ate, recebidos, despesas, irmaos, totalRecebido, totalDespesas, liquido }
 }
@@ -286,17 +374,30 @@ async function relGastos(supabase: DB, de?: string, ate?: string): Promise<Relat
     .order('id_despesa')
   if (de) q = q.gte('competencia', de)
   if (ate) q = q.lte('competencia', ate)
-  const { data } = await q
+  const [{ data }, { data: contratos }] = await Promise.all([
+    q,
+    supabase.from('vw_contratos').select('id_contrato, nome_imovel, unidade'),
+  ])
+  const rotulo = new Map(
+    ((contratos as { id_contrato: number; nome_imovel: string; unidade: string | null }[] | null) ?? []).map(
+      (c) => [c.id_contrato, c.unidade ? `${c.nome_imovel} · ${c.unidade}` : c.nome_imovel],
+    ),
+  )
+  const linhas = ((data as DespesaMes[] | null) ?? []).map((d) => ({
+    ...d,
+    descontar_de: d.id_contrato == null ? 'Todos (geral)' : rotulo.get(d.id_contrato) ?? 'Aluguel',
+  }))
   return {
     titulo: 'Gastos do mês (despesas)',
     usaPeriodo: true,
     colunas: [
       D('competencia', 'Mês'),
       T('descricao', 'Descrição'),
+      T('descontar_de', 'Descontar de'),
       T('usuario', 'Usuário'),
       M('valor', 'Valor'),
     ],
-    linhas: (data ?? []) as Record<string, unknown>[],
+    linhas,
   }
 }
 

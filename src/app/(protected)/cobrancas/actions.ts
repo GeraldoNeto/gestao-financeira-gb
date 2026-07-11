@@ -76,10 +76,16 @@ export async function excluirCobranca(id: number): Promise<{ error?: string } | 
   revalidatePath('/cobrancas')
 }
 
-/** Lança um gasto do mês (descontado do total antes da divisão). */
+function lerContrato(formData: FormData): number | null {
+  const v = Number(formData.get('id_contrato'))
+  return Number.isInteger(v) && v > 0 ? v : null
+}
+
+/** Lança um gasto do mês (descontado antes da divisão; geral ou de um aluguel). */
 export async function criarDespesa(mes: string, formData: FormData): Promise<void> {
   const descricao = String(formData.get('descricao') ?? '').trim()
   const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+  const idContrato = lerContrato(formData)
 
   if (!descricao || valor === null || valor <= 0) {
     redirect(`/cobrancas?mes=${mes}&erro=${encodeURIComponent('Informe a descrição e um valor válido para o gasto.')}`)
@@ -88,7 +94,7 @@ export async function criarDespesa(mes: string, formData: FormData): Promise<voi
   const { supabase, usuario } = await usuarioAtual()
   const { error } = await supabase
     .from('despesas_mes')
-    .insert({ competencia: `${mes}-01`, descricao, valor, usuario })
+    .insert({ competencia: `${mes}-01`, descricao, valor, id_contrato: idContrato, usuario })
   if (error) redirect(`/cobrancas?mes=${mes}&erro=${encodeURIComponent(msgErroDB(error))}`)
 
   revalidatePath('/', 'layout')
@@ -106,6 +112,7 @@ export async function atualizarDespesa(
 ): Promise<DespesaEditState> {
   const descricao = String(formData.get('descricao') ?? '').trim()
   const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+  const idContrato = lerContrato(formData)
 
   if (!descricao) return { error: 'Informe a descrição do gasto.' }
   if (valor === null || valor <= 0) return { error: 'Informe um valor válido.' }
@@ -113,7 +120,7 @@ export async function atualizarDespesa(
   const { supabase } = await usuarioAtual()
   const { data, error } = await supabase
     .from('despesas_mes')
-    .update({ descricao, valor })
+    .update({ descricao, valor, id_contrato: idContrato })
     .eq('id_despesa', id)
     .select('id_despesa')
   if (error) return { error: msgErroDB(error) }

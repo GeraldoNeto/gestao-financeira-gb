@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { brl, competenciaBR, mesAtual } from '@/lib/format'
 import { PageHeader, inputClass, btnSecondary } from '@/components/ui'
+import { calcularRateio } from '../relatorios/data'
 import type { DivisaoAluguel, DivisaoPrevista } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -17,44 +18,54 @@ export default async function DivisaoPage({
   const supabase = await createClient()
   const [{ data: prevista }, { data: recebida }, { data: despesas }] = await Promise.all([
     supabase.from('vw_divisao_prevista').select('*').order('nome_imovel').order('nome_irmao'),
-    supabase.from('vw_divisao_alugueis').select('id_pessoa, valor_irmao').eq('competencia', competencia),
-    supabase.from('despesas_mes').select('valor').eq('competencia', competencia),
+    supabase
+      .from('vw_divisao_alugueis')
+      .select('id_pessoa, nome_irmao, valor_irmao, id_contrato')
+      .eq('competencia', competencia),
+    supabase.from('despesas_mes').select('valor, id_contrato').eq('competencia', competencia),
   ])
 
   const linhasPrev = (prevista as DivisaoPrevista[] | null) ?? []
-  const linhasReceb = (recebida as Pick<DivisaoAluguel, 'id_pessoa' | 'valor_irmao'>[] | null) ?? []
-  const gastos = ((despesas as { valor: number }[] | null) ?? []).reduce(
-    (s, d) => s + Number(d.valor),
-    0,
-  )
+  const linhasReceb =
+    (recebida as Pick<DivisaoAluguel, 'id_pessoa' | 'nome_irmao' | 'valor_irmao' | 'id_contrato'>[] | null) ??
+    []
+  const despRows = (despesas as { valor: number; id_contrato: number | null }[] | null) ?? []
+  const gastos = despRows.reduce((s, d) => s + Number(d.valor), 0)
 
-  // Consolida por irmão: previsto/mês (dos valores cadastrados) e recebido no mês
-  const porIrmao = new Map<number, { nome: string; previsto: number; recebido: number }>()
+  // Previsto por irmão (dos valores cadastrados) — independe de recebimento/gastos
+  const previstoPorIrmao = new Map<number, number>()
   for (const l of linhasPrev) {
-    const a = porIrmao.get(l.id_pessoa) ?? { nome: l.nome_irmao, previsto: 0, recebido: 0 }
-    a.previsto += Number(l.valor_irmao)
-    porIrmao.set(l.id_pessoa, a)
-  }
-  for (const l of linhasReceb) {
-    const a = porIrmao.get(l.id_pessoa) ?? { nome: '', previsto: 0, recebido: 0 }
-    a.recebido += Number(l.valor_irmao)
-    porIrmao.set(l.id_pessoa, a)
+    previstoPorIrmao.set(l.id_pessoa, (previstoPorIrmao.get(l.id_pessoa) ?? 0) + Number(l.valor_irmao))
   }
 
+  // Rateio do recebido, com os gastos (gerais ou por aluguel) já descontados
+  const rateio = calcularRateio(linhasReceb, despRows)
   const totalPrevisto = linhasPrev.reduce((s, l) => s + Number(l.valor_irmao), 0)
-  const totalRecebido = linhasReceb.reduce((s, l) => s + Number(l.valor_irmao), 0)
-  const totalLiquido = totalRecebido - gastos
+  const totalRecebido = rateio.totalRecebido
+  const totalLiquido = rateio.liquido
 
-  // Líquido por irmão: gastos do mês descontados proporcionalmente ao recebido
-  const round2 = (n: number) => Math.round(n * 100) / 100
-  const irmaos = [...porIrmao.entries()]
-    .map(([id, i]) => ({
-      id,
-      ...i,
-      liquido:
-        totalRecebido > 0 ? round2(i.recebido - gastos * (i.recebido / totalRecebido)) : 0,
-      detalhes: linhasPrev.filter((l) => l.id_pessoa === id),
-    }))
+  // Une previsto + rateio por irmão (inclui quem só tem previsto, sem recebido)
+  const idsIrmaos = new Set<number>([
+    ...previstoPorIrmao.keys(),
+    ...rateio.irmaos.map((i) => i.id_pessoa),
+  ])
+  const rateioPorId = new Map(rateio.irmaos.map((i) => [i.id_pessoa, i]))
+  const nomePorId = new Map<number, string>()
+  for (const l of linhasPrev) nomePorId.set(l.id_pessoa, l.nome_irmao)
+  for (const i of rateio.irmaos) nomePorId.set(i.id_pessoa, i.nome)
+
+  const irmaos = [...idsIrmaos]
+    .map((id) => {
+      const r = rateioPorId.get(id)
+      return {
+        id,
+        nome: nomePorId.get(id) ?? '',
+        previsto: previstoPorIrmao.get(id) ?? 0,
+        recebido: r?.recebido ?? 0,
+        liquido: r?.liquido ?? 0,
+        detalhes: linhasPrev.filter((l) => l.id_pessoa === id),
+      }
+    })
     .sort((a, b) => b.previsto - a.previsto)
 
   return (

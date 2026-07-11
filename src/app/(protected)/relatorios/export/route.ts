@@ -259,7 +259,8 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
   const ws3 = wb.addWorksheet('Despesas', { views: [{ state: 'frozen', ySplit: 1 }] })
   ws3.columns = [
     { header: 'Mês', key: 'mes', width: 12 },
-    { header: 'Descrição', key: 'descricao', width: 40 },
+    { header: 'Descrição', key: 'descricao', width: 36 },
+    { header: 'Descontar de', key: 'descontar', width: 26 },
     { header: 'Lançado em', key: 'lancado', width: 16 },
     { header: 'Valor', key: 'valor', width: 16 },
   ]
@@ -268,6 +269,7 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
     const row = ws3.addRow({
       mes: competenciaBR(desp.competencia),
       descricao: desp.descricao,
+      descontar: desp.descontar_de,
       lancado: desp.data_lancamento ? dataBR(desp.data_lancamento) : '—',
       valor: desp.valor,
     })

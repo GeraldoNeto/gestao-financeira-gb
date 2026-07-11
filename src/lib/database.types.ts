@@ -26,6 +26,7 @@ export type PessoaFisica = {
   email: string | null
   data_cadastro: string
   status: StatusRegistro
+  conta_bancaria: string | null
 }
 
 export type EmpresaPessoaPercentual = {

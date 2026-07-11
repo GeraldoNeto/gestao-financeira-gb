@@ -56,17 +56,21 @@ export function FormPessoa({
           placeholder="pessoa@email.com"
         />
       </Campo>
+      <Campo label="Conta bancária / PIX">
+        <textarea
+          name="conta_bancaria"
+          rows={2}
+          defaultValue={pessoa?.conta_bancaria ?? ''}
+          className={inputClass}
+          placeholder="Banco, agência e conta, ou chave PIX"
+        />
+      </Campo>
       <Campo label="Status">
         <select name="status" defaultValue={pessoa?.status ?? 'ativo'} className={inputClass}>
           <option value="ativo">Ativo</option>
           <option value="inativo">Inativo</option>
         </select>
       </Campo>
-
-      <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-        O percentual de recebimento nos rateios é configurado por empresa, na página de cada
-        empresa (a mesma pessoa pode receber 50% de uma e 100% de outra).
-      </p>
 
       <ErroForm erro={state?.error} />
 

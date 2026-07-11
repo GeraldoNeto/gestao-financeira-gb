@@ -5,13 +5,13 @@ import { signout } from '@/app/login/actions'
 
 // Itens do menu. `adminOnly` só aparece para o perfil administrador.
 const NAV: (NavItem & { adminOnly?: boolean })[] = [
-  { href: '/dashboard', label: 'Início', dica: 'Resumo dos aluguéis do mês' },
-  { href: '/imoveis', label: 'Imóveis', dica: 'Seus imóveis, os aluguéis de cada um e a divisão entre os irmãos' },
-  { href: '/cobrancas', label: 'Aluguéis', dica: 'Cobranças mensais: recebido e pendente por mês' },
-  { href: '/pessoas', label: 'Irmãos', dica: 'Cadastro dos irmãos (co-donos)' },
-  { href: '/divisao', label: 'Divisão', dica: 'Quanto cada irmão recebe por mês' },
-  { href: '/rateio', label: 'Rateio', dica: 'Distribuir um crédito de empresa entre as pessoas' },
-  { href: '/relatorios', label: 'Relatórios', dica: 'Relatórios com exportação para Excel, PDF e CSV' },
+  { href: '/dashboard', label: 'Início', dica: 'Guia do fluxo e resumo do mês' },
+  { href: '/imoveis', label: '1. Imóveis', dica: 'Cadastre os imóveis da família' },
+  { href: '/contratos', label: '2. Aluguéis', dica: 'Cadastre cada aluguel e o valor mensal' },
+  { href: '/pessoas', label: '3. Irmãos', dica: 'Cadastre os irmãos e o peso de cada um nos aluguéis' },
+  { href: '/cobrancas', label: '4. Receber do mês', dica: 'Gere as cobranças do mês e dê baixa nas pagas' },
+  { href: '/divisao', label: '5. Divisão', dica: 'Veja quanto cada irmão recebe' },
+  { href: '/relatorios', label: '6. Relatórios', dica: 'Baixe em Excel, PDF ou CSV' },
   { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
 ]
 

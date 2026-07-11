@@ -17,7 +17,7 @@ export default async function RelatoriosPage({
   searchParams: Promise<{ tipo?: string; de?: string; ate?: string }>
 }) {
   const sp = await searchParams
-  const tipo: RelatorioId = sp.tipo && isRelatorioId(sp.tipo) ? sp.tipo : 'empresas'
+  const tipo: RelatorioId = sp.tipo && isRelatorioId(sp.tipo) ? sp.tipo : 'alugueis'
   const de = sp.de || ''
   const ate = sp.ate || ''
 

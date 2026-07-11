@@ -16,6 +16,8 @@ export type Relatorio = {
 
 /** Catálogo de relatórios disponíveis (Módulo 9). */
 export const RELATORIOS = [
+  { id: 'alugueis', label: 'Aluguéis (cobranças do período)' },
+  { id: 'divisao', label: 'Divisão entre os irmãos (recebido)' },
   { id: 'empresas', label: 'Empresas cadastradas' },
   { id: 'pessoas', label: 'Pessoas físicas cadastradas' },
   { id: 'creditos', label: 'Créditos (todos)' },
@@ -57,6 +59,10 @@ export async function buildRelatorio(
   ate?: string,
 ): Promise<Relatorio> {
   switch (tipo) {
+    case 'alugueis':
+      return relAlugueis(supabase, de, ate)
+    case 'divisao':
+      return relDivisao(supabase, de, ate)
     case 'empresas':
       return relEmpresas(supabase)
     case 'pessoas':
@@ -71,6 +77,64 @@ export async function buildRelatorio(
       return relDiferencas(supabase, de, ate)
     case 'resumo':
       return relResumo(supabase)
+  }
+}
+
+async function relAlugueis(supabase: DB, de?: string, ate?: string): Promise<Relatorio> {
+  let q = supabase
+    .from('vw_cobrancas')
+    .select('*')
+    .order('competencia', { ascending: false })
+    .order('nome_imovel')
+  if (de) q = q.gte('competencia', de)
+  if (ate) q = q.lte('competencia', ate)
+  const { data } = await q
+  const linhas = (((data ?? []) as Record<string, unknown>[])).map((r) => ({
+    competencia: r.competencia,
+    imovel: r.nome_imovel,
+    aluguel: r.unidade ?? '—',
+    vencimento: r.vencimento,
+    valor: r.valor,
+    situacao: r.situacao,
+    pago_em: r.data_pagamento,
+  }))
+  return {
+    titulo: 'Aluguéis (cobranças do período)',
+    usaPeriodo: true,
+    colunas: [
+      D('competencia', 'Mês'),
+      T('imovel', 'Imóvel'),
+      T('aluguel', 'Aluguel'),
+      D('vencimento', 'Vencimento'),
+      M('valor', 'Valor'),
+      T('situacao', 'Situação'),
+      D('pago_em', 'Pago em'),
+    ],
+    linhas,
+  }
+}
+
+async function relDivisao(supabase: DB, de?: string, ate?: string): Promise<Relatorio> {
+  let q = supabase
+    .from('vw_divisao_alugueis')
+    .select('*')
+    .order('competencia', { ascending: false })
+    .order('nome_irmao')
+  if (de) q = q.gte('competencia', de)
+  if (ate) q = q.lte('competencia', ate)
+  const { data } = await q
+  return {
+    titulo: 'Divisão entre os irmãos (recebido)',
+    usaPeriodo: true,
+    colunas: [
+      D('competencia', 'Mês'),
+      T('nome_imovel', 'Imóvel'),
+      T('nome_irmao', 'Irmão'),
+      N('percentual', 'Peso (%)'),
+      M('valor_recebido', 'Aluguel recebido'),
+      M('valor_irmao', 'Parte do irmão'),
+    ],
+    linhas: (data ?? []) as Record<string, unknown>[],
   }
 }
 

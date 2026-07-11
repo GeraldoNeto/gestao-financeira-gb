@@ -57,3 +57,11 @@ export function mesAtual(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
+
+/** Último dia do mês aaaa-mm como aaaa-mm-dd (ex.: '2026-02' → '2026-02-28'). */
+export function ultimoDiaMes(mes: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(mes)
+  if (!m) return mes
+  const dia = new Date(Number(m[1]), Number(m[2]), 0).getDate()
+  return `${mes}-${String(dia).padStart(2, '0')}`
+}

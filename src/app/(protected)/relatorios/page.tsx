@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { Tabela, Th, Td, VazioTabela, inputClass, btnPrimary } from '@/components/ui'
-import { dataBR } from '@/lib/format'
+import { dataBR, competenciaBR, ultimoDiaMes } from '@/lib/format'
 import {
   RELATORIOS,
   buildRelatorio,
@@ -14,12 +14,14 @@ export const dynamic = 'force-dynamic'
 export default async function RelatoriosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string; de?: string; ate?: string }>
+  searchParams: Promise<{ tipo?: string; de?: string; ate?: string; mes?: string }>
 }) {
   const sp = await searchParams
   const tipo: RelatorioId = sp.tipo && isRelatorioId(sp.tipo) ? sp.tipo : 'prestacao'
-  const de = sp.de || ''
-  const ate = sp.ate || ''
+  const mes = /^\d{4}-\d{2}$/.test(sp.mes ?? '') ? sp.mes! : ''
+  // O mês, quando informado, tem precedência sobre o período personalizado
+  const de = mes ? `${mes}-01` : sp.de || ''
+  const ate = mes ? ultimoDiaMes(mes) : sp.ate || ''
 
   const supabase = await createClient()
   const rel = await buildRelatorio(supabase, tipo, de || undefined, ate || undefined)
@@ -53,15 +55,24 @@ export default async function RelatoriosPage({
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Mês
+          </span>
+          <input type="month" name="mes" defaultValue={mes} className={inputClass} />
+        </label>
+        <div className="flex items-end">
+          <span className="pb-2 text-sm text-gray-400">ou período:</span>
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             De
           </span>
-          <input type="date" name="de" defaultValue={de} className={inputClass} />
+          <input type="date" name="de" defaultValue={mes ? '' : de} className={inputClass} />
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Até
           </span>
-          <input type="date" name="ate" defaultValue={ate} className={inputClass} />
+          <input type="date" name="ate" defaultValue={mes ? '' : ate} className={inputClass} />
         </label>
         <button type="submit" className={btnPrimary}>
           Gerar
@@ -74,10 +85,11 @@ export default async function RelatoriosPage({
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{rel.titulo}</h2>
           <p className="text-xs text-gray-500">
             {rel.linhas.length} registro{rel.linhas.length === 1 ? '' : 's'}
-            {rel.usaPeriodo && (de || ate) && (
+            {rel.usaPeriodo && mes && <> · mês {competenciaBR(`${mes}-01`)}</>}
+            {rel.usaPeriodo && !mes && (de || ate) && (
               <> · período {de ? dataBR(de) : '…'} a {ate ? dataBR(ate) : '…'}</>
             )}
-            {rel.usaPeriodo && !de && !ate && <> · todos os períodos</>}
+            {rel.usaPeriodo && !mes && !de && !ate && <> · todos os períodos</>}
           </p>
         </div>
         <div className="flex gap-2">

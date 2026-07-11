@@ -28,7 +28,7 @@ export default async function NovoRateioPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader titulo="Novo rateio" descricao="Distribuir um crédito da empresa entre pessoas físicas" />
+      <PageHeader titulo="Novo rateio" descricao="Distribuir um crédito da empresa entre pessoas físicas" voltar="/rateio" />
       <FormRateio
         empresas={((empresas as { id_empresa: number; nome_empresa: string }[] | null) ?? []).map(
           (e) => ({ id: e.id_empresa, nome: e.nome_empresa }),

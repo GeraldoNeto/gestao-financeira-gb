@@ -50,7 +50,7 @@ export default async function EditarIrmaoPage({ params }: { params: Promise<{ id
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
-        <PageHeader titulo="Editar irmão" descricao={pessoa.nome} />
+        <PageHeader titulo="Editar irmão" descricao={pessoa.nome} voltar="/pessoas" />
         <FormPessoa pessoa={pessoa} action={atualizarPessoa.bind(null, pessoa.id_pessoa)} />
       </div>
 

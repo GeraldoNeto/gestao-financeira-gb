@@ -29,7 +29,7 @@ export default async function EditarContratoPage({ params }: { params: Promise<{
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader titulo="Editar aluguel" descricao={`Valor mensal: ${brl(contrato.valor_mensal)}`} />
+      <PageHeader titulo="Editar aluguel" descricao={`Valor mensal: ${brl(contrato.valor_mensal)}`} voltar="/contratos" />
       <FormContrato
         contrato={contrato}
         imoveis={listaImoveis}

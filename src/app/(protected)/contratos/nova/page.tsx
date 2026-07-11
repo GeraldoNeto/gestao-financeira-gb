@@ -29,7 +29,7 @@ export default async function NovoContratoPage({
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader titulo="Novo aluguel" descricao="Cadastrar o aluguel de um imóvel (valor e vencimento)" />
+      <PageHeader titulo="Novo aluguel" descricao="Cadastrar o aluguel de um imóvel (valor e vencimento)" voltar={temImovel ? `/imoveis/${idImovel}` : '/contratos'} />
       {listaImoveis.length === 0 ? (
         <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
           Cadastre um <Link href="/imoveis/nova" className="underline">imóvel</Link> antes.
@@ -39,7 +39,7 @@ export default async function NovoContratoPage({
           imoveis={listaImoveis}
           action={criarContrato}
           defaultImovel={temImovel ? idImovel : undefined}
-          voltarPara={temImovel ? `/imoveis/${idImovel}` : '/imoveis'}
+          voltarPara={temImovel ? `/imoveis/${idImovel}` : '/contratos'}
         />
       )}
     </div>

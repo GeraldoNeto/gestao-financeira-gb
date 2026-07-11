@@ -44,7 +44,7 @@ export default async function EditarEmpresaPage({
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <div>
-        <PageHeader titulo="Editar empresa" descricao={empresa.nome_empresa} />
+        <PageHeader titulo="Editar empresa" descricao={empresa.nome_empresa} voltar="/empresas" />
         <FormEmpresa empresa={empresa} action={atualizarEmpresa.bind(null, empresa.id_empresa)} />
       </div>
 

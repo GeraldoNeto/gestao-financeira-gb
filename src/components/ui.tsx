@@ -70,14 +70,25 @@ export function PageHeader({
   titulo,
   descricao,
   acao,
+  voltar,
 }: {
   titulo: string
   descricao?: string
   acao?: { href: string; label: string }
+  /** Href da tela anterior — mostra um link "← Voltar" acima do título. */
+  voltar?: string
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
+        {voltar && (
+          <Link
+            href={voltar}
+            className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition hover:text-emerald-600 dark:hover:text-emerald-400"
+          >
+            <span aria-hidden>←</span> Voltar
+          </Link>
+        )}
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{titulo}</h1>
         {descricao && <p className="mt-1 text-sm text-gray-500">{descricao}</p>}
       </div>

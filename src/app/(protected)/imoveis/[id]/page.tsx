@@ -41,7 +41,7 @@ export default async function EditarImovelPage({ params }: { params: Promise<{ i
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
-        <PageHeader titulo="Editar imóvel" descricao={imovel.nome} />
+        <PageHeader titulo="Editar imóvel" descricao={imovel.nome} voltar="/imoveis" />
         <FormImovel imovel={imovel} action={atualizarImovel.bind(null, imovel.id_imovel)} />
       </div>
 

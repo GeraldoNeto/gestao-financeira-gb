@@ -56,8 +56,26 @@ export async function criarContrato(_prev: ContratoState, formData: FormData): P
   if (erro) return { error: erro }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('contratos').insert(dados!)
+  const { data, error } = await supabase
+    .from('contratos')
+    .insert(dados!)
+    .select('id_contrato')
+    .single()
   if (error) return { error: msgErroDB(error) }
+
+  // Por padrão todos os irmãos ativos recebem 100% do aluguel novo —
+  // o ajuste (ex.: 50%) é feito na página de cada irmão.
+  const idContrato = (data as { id_contrato: number }).id_contrato
+  const { data: irmaos } = await supabase
+    .from('pessoas_fisicas')
+    .select('id_pessoa')
+    .eq('status', 'ativo')
+  const vinculos = ((irmaos as { id_pessoa: number }[] | null) ?? []).map((p) => ({
+    id_contrato: idContrato,
+    id_pessoa: p.id_pessoa,
+    percentual: 100,
+  }))
+  if (vinculos.length) await supabase.from('contrato_pessoa_percentual').insert(vinculos)
 
   revalidatePath('/', 'layout')
   redirect(`/imoveis/${dados!.id_imovel}`)

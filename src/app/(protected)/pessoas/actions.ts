@@ -35,9 +35,23 @@ export async function criarPessoa(_prev: CadState, formData: FormData): Promise<
     .single()
   if (error) return { error: msgErroDB(error) }
 
+  // Por padrão o irmão entra com 100% em todos os aluguéis ativos —
+  // depois é só ajustar quem recebe 50%.
+  const idPessoa = (data as { id_pessoa: number }).id_pessoa
+  const { data: contratos } = await supabase
+    .from('contratos')
+    .select('id_contrato')
+    .eq('status', 'ativo')
+  const vinculos = ((contratos as { id_contrato: number }[] | null) ?? []).map((c) => ({
+    id_contrato: c.id_contrato,
+    id_pessoa: idPessoa,
+    percentual: 100,
+  }))
+  if (vinculos.length) await supabase.from('contrato_pessoa_percentual').insert(vinculos)
+
   revalidatePath('/', 'layout')
   // Vai direto para a página do irmão, onde ficam os pesos dos aluguéis
-  redirect(`/pessoas/${(data as { id_pessoa: number }).id_pessoa}`)
+  redirect(`/pessoas/${idPessoa}`)
 }
 
 export async function atualizarPessoa(

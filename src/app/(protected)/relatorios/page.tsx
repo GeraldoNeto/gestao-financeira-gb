@@ -17,7 +17,7 @@ export default async function RelatoriosPage({
   searchParams: Promise<{ tipo?: string; de?: string; ate?: string }>
 }) {
   const sp = await searchParams
-  const tipo: RelatorioId = sp.tipo && isRelatorioId(sp.tipo) ? sp.tipo : 'alugueis'
+  const tipo: RelatorioId = sp.tipo && isRelatorioId(sp.tipo) ? sp.tipo : 'prestacao'
   const de = sp.de || ''
   const ate = sp.ate || ''
 
@@ -82,10 +82,18 @@ export default async function RelatoriosPage({
         </div>
         <div className="flex gap-2">
           <ExportLink href={exportHref('csv')} label="CSV" />
-          <ExportLink href={exportHref('xlsx')} label="Excel" />
+          <ExportLink href={exportHref('xlsx')} label="Excel" destaque={tipo === 'prestacao'} />
           <ExportLink href={exportHref('pdf')} label="PDF" />
         </div>
       </div>
+
+      {tipo === 'prestacao' && (
+        <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          A tabela abaixo mostra o rateio final. Baixe em <strong>Excel</strong> para a planilha
+          completa, com abas de <strong>aluguéis recebidos</strong>, <strong>despesas</strong> e o{' '}
+          <strong>rateio detalhado</strong> — tudo pronto para conferência.
+        </p>
+      )}
 
       <Tabela>
         <thead>
@@ -119,11 +127,14 @@ export default async function RelatoriosPage({
   )
 }
 
-function ExportLink({ href, label }: { href: string; label: string }) {
+function ExportLink({ href, label, destaque }: { href: string; label: string; destaque?: boolean }) {
+  const cls = destaque
+    ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 dark:border-emerald-600'
+    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
   return (
     <a
       href={href}
-      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+      className={`inline-flex items-center rounded-lg border px-3 py-2 text-sm font-medium transition ${cls}`}
     >
       {label}
     </a>

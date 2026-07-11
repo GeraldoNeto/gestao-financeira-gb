@@ -16,6 +16,7 @@ export type Relatorio = {
 
 /** Catálogo de relatórios disponíveis (Módulo 9). */
 export const RELATORIOS = [
+  { id: 'prestacao', label: 'Prestação de contas (recebidos, despesas e rateio)' },
   { id: 'alugueis', label: 'Aluguéis (cobranças do período)' },
   { id: 'divisao', label: 'Divisão entre os irmãos (recebido)' },
   { id: 'gastos', label: 'Gastos do mês (despesas)' },
@@ -60,6 +61,8 @@ export async function buildRelatorio(
   ate?: string,
 ): Promise<Relatorio> {
   switch (tipo) {
+    case 'prestacao':
+      return relPrestacao(supabase, de, ate)
     case 'alugueis':
       return relAlugueis(supabase, de, ate)
     case 'divisao':
@@ -80,6 +83,140 @@ export async function buildRelatorio(
       return relDiferencas(supabase, de, ate)
     case 'resumo':
       return relResumo(supabase)
+  }
+}
+
+// ---------------------- Prestação de contas ----------------------
+
+export type PrestacaoRecebido = {
+  competencia: string
+  imovel: string
+  unidade: string | null
+  vencimento: string
+  data_pagamento: string | null
+  observacao: string | null
+  valor: number
+}
+export type PrestacaoDespesa = {
+  competencia: string
+  descricao: string
+  data_lancamento: string
+  valor: number
+}
+export type PrestacaoIrmao = {
+  nome: string
+  recebido: number
+  despesa_rateada: number
+  liquido: number
+}
+export type DadosPrestacao = {
+  de?: string
+  ate?: string
+  recebidos: PrestacaoRecebido[]
+  despesas: PrestacaoDespesa[]
+  irmaos: PrestacaoIrmao[]
+  totalRecebido: number
+  totalDespesas: number
+  liquido: number
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * Reúne, para o período (competência), tudo o que a prestação de contas precisa:
+ * aluguéis recebidos, despesas e o rateio do líquido entre os irmãos.
+ * A despesa é descontada de cada irmão proporcionalmente ao que ele recebeu.
+ */
+export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): Promise<DadosPrestacao> {
+  let qCob = supabase
+    .from('vw_cobrancas')
+    .select('competencia, nome_imovel, unidade, vencimento, data_pagamento, observacao, valor')
+    .eq('status', 'pago')
+    .order('competencia')
+    .order('nome_imovel')
+  let qDesp = supabase
+    .from('despesas_mes')
+    .select('competencia, descricao, data_lancamento, valor')
+    .order('competencia')
+    .order('id_despesa')
+  let qDiv = supabase
+    .from('vw_divisao_alugueis')
+    .select('id_pessoa, nome_irmao, valor_irmao')
+  if (de) {
+    qCob = qCob.gte('competencia', de)
+    qDesp = qDesp.gte('competencia', de)
+    qDiv = qDiv.gte('competencia', de)
+  }
+  if (ate) {
+    qCob = qCob.lte('competencia', ate)
+    qDesp = qDesp.lte('competencia', ate)
+    qDiv = qDiv.lte('competencia', ate)
+  }
+
+  const [{ data: cob }, { data: desp }, { data: div }] = await Promise.all([qCob, qDesp, qDiv])
+
+  const recebidos = ((cob as PrestacaoRecebido[] | null) ?? []).map((r) => ({
+    ...r,
+    valor: Number(r.valor),
+  }))
+  const despesas = ((desp as PrestacaoDespesa[] | null) ?? []).map((d) => ({
+    ...d,
+    valor: Number(d.valor),
+  }))
+
+  const totalRecebido = recebidos.reduce((s, r) => s + r.valor, 0)
+  const totalDespesas = despesas.reduce((s, d) => s + d.valor, 0)
+  const liquido = round2(totalRecebido - totalDespesas)
+
+  // Recebido por irmão (soma das partes de cada aluguel pago no período)
+  const porIrmao = new Map<number, { nome: string; recebido: number }>()
+  for (const l of (div as { id_pessoa: number; nome_irmao: string; valor_irmao: number }[] | null) ??
+    []) {
+    const a = porIrmao.get(l.id_pessoa) ?? { nome: l.nome_irmao, recebido: 0 }
+    a.recebido += Number(l.valor_irmao)
+    porIrmao.set(l.id_pessoa, a)
+  }
+
+  const irmaos: PrestacaoIrmao[] = [...porIrmao.values()]
+    .map((i) => {
+      const despesaRateada =
+        totalRecebido > 0 ? round2(totalDespesas * (i.recebido / totalRecebido)) : 0
+      return {
+        nome: i.nome,
+        recebido: round2(i.recebido),
+        despesa_rateada: despesaRateada,
+        liquido: round2(i.recebido - despesaRateada),
+      }
+    })
+    .sort((a, b) => b.recebido - a.recebido)
+
+  return { de, ate, recebidos, despesas, irmaos, totalRecebido, totalDespesas, liquido }
+}
+
+async function relPrestacao(supabase: DB, de?: string, ate?: string): Promise<Relatorio> {
+  const d = await dadosPrestacao(supabase, de, ate)
+  const linhas: Record<string, unknown>[] = d.irmaos.map((i) => ({
+    nome: i.nome,
+    recebido: i.recebido,
+    despesa_rateada: i.despesa_rateada,
+    liquido: i.liquido,
+  }))
+  linhas.push({
+    nome: 'TOTAL',
+    recebido: d.totalRecebido,
+    despesa_rateada: d.totalDespesas,
+    liquido: d.liquido,
+  })
+  return {
+    titulo: 'Prestação de contas — rateio entre os irmãos',
+    usaPeriodo: true,
+    colunas: [
+      T('nome', 'Irmão'),
+      M('recebido', 'Recebido'),
+      M('despesa_rateada', 'Despesas (rateio)'),
+      M('liquido', 'Líquido a receber'),
+    ],
+    linhas,
   }
 }
 

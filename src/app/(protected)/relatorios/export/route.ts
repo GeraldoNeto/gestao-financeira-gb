@@ -2,8 +2,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
-import { dataBR, hojeISO } from '@/lib/format'
-import { buildRelatorio, isRelatorioId, type Coluna, type Relatorio } from '../data'
+import { dataBR, hojeISO, competenciaBR } from '@/lib/format'
+import {
+  buildRelatorio,
+  dadosPrestacao,
+  isRelatorioId,
+  type Coluna,
+  type Relatorio,
+  type DadosPrestacao,
+} from '../data'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +31,20 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
-  const rel = await buildRelatorio(supabase, tipoParam, de, ate)
   const nomeBase = `relatorio-${tipoParam}-${hojeISO()}`
+
+  // Prestação de contas em XLSX: planilha completa (multi-aba) com todos os cálculos
+  if (tipoParam === 'prestacao' && formato === 'xlsx') {
+    const dados = await dadosPrestacao(supabase, de, ate)
+    const buf = await gerarXLSXPrestacao(dados)
+    return arquivo(
+      buf,
+      `prestacao-de-contas-${hojeISO()}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+  }
+
+  const rel = await buildRelatorio(supabase, tipoParam, de, ate)
 
   if (formato === 'csv') {
     const body = '﻿' + gerarCSV(rel)
@@ -101,6 +120,162 @@ async function gerarXLSX(rel: Relatorio): Promise<Uint8Array> {
   rel.colunas.forEach((c, i) => {
     if (c.tipo === 'money') ws.getColumn(i + 1).numFmt = '"R$" #,##0.00'
   })
+
+  const buf = await wb.xlsx.writeBuffer()
+  return new Uint8Array(buf)
+}
+
+// ------------------- XLSX Prestação de contas -------------------
+
+const MONEY_FMT = '"R$" #,##0.00'
+const AZUL = 'FF1F6F54' // cabeçalhos
+const CINZA_CLARO = 'FFF3F4F6'
+
+function periodoLabel(d: DadosPrestacao): string {
+  if (d.de && d.ate) return `${competenciaBR(d.de)} a ${competenciaBR(d.ate)}`
+  if (d.de) return `a partir de ${competenciaBR(d.de)}`
+  if (d.ate) return `até ${competenciaBR(d.ate)}`
+  return 'todos os meses'
+}
+
+function estiloHeader(row: ExcelJS.Row) {
+  row.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: AZUL } }
+    cell.alignment = { vertical: 'middle' }
+    cell.border = { bottom: { style: 'thin', color: { argb: 'FFB0B0B0' } } }
+  })
+}
+
+function estiloTotal(row: ExcelJS.Row) {
+  row.eachCell((cell) => {
+    cell.font = { bold: true }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CINZA_CLARO } }
+    cell.border = { top: { style: 'thin', color: { argb: 'FF888888' } } }
+  })
+}
+
+async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'Gestão Financeira GB'
+  wb.created = new Date()
+
+  // ===== Aba 1: Resumo (com o rateio final) =====
+  const resumo = wb.addWorksheet('Resumo', { views: [{ showGridLines: false }] })
+  resumo.columns = [
+    { width: 30 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 },
+  ]
+
+  resumo.mergeCells('A1:D1')
+  const t1 = resumo.getCell('A1')
+  t1.value = 'Prestação de Contas — Aluguéis'
+  t1.font = { bold: true, size: 16 }
+
+  resumo.mergeCells('A2:D2')
+  resumo.getCell('A2').value = `Período: ${periodoLabel(d)}`
+  resumo.getCell('A2').font = { color: { argb: 'FF666666' } }
+  resumo.mergeCells('A3:D3')
+  resumo.getCell('A3').value = `Emitido em ${dataBR(hojeISO())}`
+  resumo.getCell('A3').font = { color: { argb: 'FF666666' } }
+
+  // Bloco de totais
+  const totais: [string, number][] = [
+    ['Total de aluguéis recebidos', d.totalRecebido],
+    ['Total de despesas', d.totalDespesas],
+    ['Líquido a dividir', d.liquido],
+  ]
+  let r = 5
+  for (const [rot, val] of totais) {
+    resumo.getCell(`A${r}`).value = rot
+    resumo.getCell(`A${r}`).font = { bold: r === 7 }
+    const cVal = resumo.getCell(`B${r}`)
+    cVal.value = val
+    cVal.numFmt = MONEY_FMT
+    cVal.font = { bold: r === 7, color: { argb: r === 6 ? 'FFB00000' : 'FF1F6F54' } }
+    r++
+  }
+
+  // Tabela do rateio por irmão
+  r += 1
+  resumo.mergeCells(`A${r}:D${r}`)
+  resumo.getCell(`A${r}`).value = 'Rateio entre os irmãos'
+  resumo.getCell(`A${r}`).font = { bold: true, size: 12 }
+  r++
+
+  const headRow = resumo.getRow(r)
+  headRow.values = ['Irmão', 'Recebido', 'Despesas (rateio)', 'Líquido a receber']
+  estiloHeader(headRow)
+  r++
+
+  for (const i of d.irmaos) {
+    const row = resumo.getRow(r)
+    row.values = [i.nome, i.recebido, i.despesa_rateada, i.liquido]
+    row.getCell(2).numFmt = MONEY_FMT
+    row.getCell(3).numFmt = MONEY_FMT
+    row.getCell(4).numFmt = MONEY_FMT
+    row.getCell(4).font = { bold: true, color: { argb: 'FF1F6F54' } }
+    r++
+  }
+
+  const totalRow = resumo.getRow(r)
+  totalRow.values = ['TOTAL', d.totalRecebido, d.totalDespesas, d.liquido]
+  totalRow.getCell(2).numFmt = MONEY_FMT
+  totalRow.getCell(3).numFmt = MONEY_FMT
+  totalRow.getCell(4).numFmt = MONEY_FMT
+  estiloTotal(totalRow)
+
+  // ===== Aba 2: Aluguéis recebidos =====
+  const ws2 = wb.addWorksheet('Aluguéis recebidos', { views: [{ state: 'frozen', ySplit: 1 }] })
+  ws2.columns = [
+    { header: 'Mês', key: 'mes', width: 12 },
+    { header: 'Imóvel', key: 'imovel', width: 24 },
+    { header: 'Unidade / descrição', key: 'unidade', width: 26 },
+    { header: 'Vencimento', key: 'venc', width: 14 },
+    { header: 'Pago em', key: 'pago', width: 14 },
+    { header: 'Observação', key: 'obs', width: 28 },
+    { header: 'Valor', key: 'valor', width: 16 },
+  ]
+  estiloHeader(ws2.getRow(1))
+  for (const rec of d.recebidos) {
+    const row = ws2.addRow({
+      mes: competenciaBR(rec.competencia),
+      imovel: rec.imovel,
+      unidade: rec.unidade ?? '—',
+      venc: dataBR(rec.vencimento),
+      pago: rec.data_pagamento ? dataBR(rec.data_pagamento) : '—',
+      obs: rec.observacao ?? '',
+      valor: rec.valor,
+    })
+    row.getCell('valor').numFmt = MONEY_FMT
+  }
+  const totRec = ws2.addRow({ obs: 'TOTAL RECEBIDO', valor: d.totalRecebido })
+  totRec.getCell('valor').numFmt = MONEY_FMT
+  estiloTotal(totRec)
+
+  // ===== Aba 3: Despesas =====
+  const ws3 = wb.addWorksheet('Despesas', { views: [{ state: 'frozen', ySplit: 1 }] })
+  ws3.columns = [
+    { header: 'Mês', key: 'mes', width: 12 },
+    { header: 'Descrição', key: 'descricao', width: 40 },
+    { header: 'Lançado em', key: 'lancado', width: 16 },
+    { header: 'Valor', key: 'valor', width: 16 },
+  ]
+  estiloHeader(ws3.getRow(1))
+  for (const desp of d.despesas) {
+    const row = ws3.addRow({
+      mes: competenciaBR(desp.competencia),
+      descricao: desp.descricao,
+      lancado: desp.data_lancamento ? dataBR(desp.data_lancamento) : '—',
+      valor: desp.valor,
+    })
+    row.getCell('valor').numFmt = MONEY_FMT
+  }
+  const totDesp = ws3.addRow({ lancado: 'TOTAL DESPESAS', valor: d.totalDespesas })
+  totDesp.getCell('valor').numFmt = MONEY_FMT
+  estiloTotal(totDesp)
 
   const buf = await wb.xlsx.writeBuffer()
   return new Uint8Array(buf)

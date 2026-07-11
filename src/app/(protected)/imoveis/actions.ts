@@ -54,41 +54,6 @@ export async function atualizarImovel(
   redirect('/imoveis')
 }
 
-export type PctState = { error?: string; ok?: boolean } | undefined
-
-/**
- * Salva a divisão do aluguel deste imóvel entre os irmãos.
- * Substitui os vínculos do imóvel (apaga e reinsere os com percentual > 0).
- * Campos do form: pct_<id_pessoa> = percentual.
- */
-export async function salvarPercentuaisImovel(
-  idImovel: number,
-  _prev: PctState,
-  formData: FormData,
-): Promise<PctState> {
-  const rows: { id_imovel: number; id_pessoa: number; percentual: number }[] = []
-  for (const [k, v] of formData.entries()) {
-    if (!k.startsWith('pct_')) continue
-    const idPessoa = Number(k.slice(4))
-    if (!Number.isInteger(idPessoa)) continue
-    let p = Number(String(v).replace(',', '.'))
-    if (!Number.isFinite(p)) p = 0
-    p = Math.min(100, Math.max(0, Math.round(p * 100) / 100))
-    if (p > 0) rows.push({ id_imovel: idImovel, id_pessoa: idPessoa, percentual: p })
-  }
-
-  const supabase = await createClient()
-  const del = await supabase.from('imovel_pessoa_percentual').delete().eq('id_imovel', idImovel)
-  if (del.error) return { error: msgErroDB(del.error) }
-  if (rows.length) {
-    const ins = await supabase.from('imovel_pessoa_percentual').insert(rows)
-    if (ins.error) return { error: msgErroDB(ins.error) }
-  }
-
-  revalidatePath('/', 'layout')
-  return { ok: true }
-}
-
 export async function excluirImovel(id: number): Promise<{ error?: string } | void> {
   const supabase = await createClient()
   const { data, error } = await supabase

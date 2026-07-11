@@ -5,10 +5,9 @@ import { PageHeader, Tabela, Th, Td, VazioTabela, btnPrimary } from '@/component
 import { brl } from '@/lib/format'
 import { ExcluirButton } from '@/components/excluir-button'
 import { FormImovel } from '../form'
-import { PercentuaisImovelForm } from '../percentuais-form'
 import { atualizarImovel } from '../actions'
 import { excluirContrato } from '../../contratos/actions'
-import type { Imovel, ImovelPessoaPercentual, ContratoView } from '@/lib/database.types'
+import type { Imovel, ContratoView } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,28 +17,14 @@ export default async function EditarImovelPage({ params }: { params: Promise<{ i
   if (!Number.isInteger(idNum)) notFound()
 
   const supabase = await createClient()
-  const [{ data }, { data: irmaos }, { data: percentuais }, { data: contratos }, { data: divPrev }] =
-    await Promise.all([
-      supabase.from('imoveis').select('*').eq('id_imovel', idNum).single(),
-      supabase.from('pessoas_fisicas').select('id_pessoa, nome').eq('status', 'ativo').order('nome'),
-      supabase.from('imovel_pessoa_percentual').select('id_pessoa, percentual').eq('id_imovel', idNum),
-      supabase.from('vw_contratos').select('*').eq('id_imovel', idNum).order('unidade'),
-      supabase.from('vw_divisao_prevista').select('id_pessoa, nome_irmao, valor_irmao').eq('id_imovel', idNum),
-    ])
+  const [{ data }, { data: contratos }, { data: divPrev }] = await Promise.all([
+    supabase.from('imoveis').select('*').eq('id_imovel', idNum).single(),
+    supabase.from('vw_contratos').select('*').eq('id_imovel', idNum).order('unidade'),
+    supabase.from('vw_divisao_prevista').select('id_pessoa, nome_irmao, valor_irmao').eq('id_imovel', idNum),
+  ])
 
   const imovel = data as Imovel | null
   if (!imovel) notFound()
-
-  const mapaPct = new Map(
-    ((percentuais as Pick<ImovelPessoaPercentual, 'id_pessoa' | 'percentual'>[] | null) ?? []).map(
-      (r) => [r.id_pessoa, r.percentual],
-    ),
-  )
-  const irmaosPct = ((irmaos as { id_pessoa: number; nome: string }[] | null) ?? []).map((p) => ({
-    id: p.id_pessoa,
-    nome: p.nome,
-    percentual: mapaPct.get(p.id_pessoa) ?? 0,
-  }))
 
   const alugueis = (contratos as ContratoView[] | null) ?? []
 
@@ -115,13 +100,19 @@ export default async function EditarImovelPage({ params }: { params: Promise<{ i
           Divisão do aluguel entre os irmãos
         </h2>
         <p className="mb-4 text-sm text-gray-500">
-          Percentual que cada irmão recebe do aluguel deste imóvel
+          Os pesos são definidos no cadastro de cada{' '}
+          <Link href="/pessoas" className="text-blue-600 underline dark:text-blue-400">
+            irmão
+          </Link>
+          , aluguel por aluguel
         </p>
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <PercentuaisImovelForm idImovel={imovel.id_imovel} irmaos={irmaosPct} />
-
-          {previaLista.length > 0 && (
-            <div className="mt-6 border-t border-gray-100 pt-4 dark:border-gray-800">
+          {previaLista.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              Nenhum irmão recebe deste imóvel ainda. Defina os pesos na página de cada irmão.
+            </p>
+          ) : (
+            <div>
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
                 Divisão prevista deste imóvel (por mês)
               </p>

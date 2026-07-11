@@ -113,8 +113,8 @@ export type Contrato = {
   data_cadastro: string
 }
 
-export type ImovelPessoaPercentual = {
-  id_imovel: number
+export type ContratoPessoaPercentual = {
+  id_contrato: number
   id_pessoa: number
   percentual: number
 }
@@ -321,7 +321,7 @@ export type Database = {
       imoveis: TableShape<Imovel>
       contratos: TableShape<Contrato>
       cobrancas: TableShape<Cobranca>
-      imovel_pessoa_percentual: TableShape<ImovelPessoaPercentual>
+      contrato_pessoa_percentual: TableShape<ContratoPessoaPercentual>
     }
     Views: {
       vw_saldo_empresa: ViewShape<SaldoEmpresa>

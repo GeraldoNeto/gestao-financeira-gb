@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { brl, competenciaBR, mesAtual } from '@/lib/format'
-import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnSecondary } from '@/components/ui'
+import { PageHeader, inputClass, btnSecondary } from '@/components/ui'
 import type { DivisaoAluguel, DivisaoPrevista } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -47,11 +47,13 @@ export default async function DivisaoPage({
 
   // Líquido por irmão: gastos do mês descontados proporcionalmente ao recebido
   const round2 = (n: number) => Math.round(n * 100) / 100
-  const irmaos = [...porIrmao.values()]
-    .map((i) => ({
+  const irmaos = [...porIrmao.entries()]
+    .map(([id, i]) => ({
+      id,
       ...i,
       liquido:
         totalRecebido > 0 ? round2(i.recebido - gastos * (i.recebido / totalRecebido)) : 0,
+      detalhes: linhasPrev.filter((l) => l.id_pessoa === id),
     }))
     .sort((a, b) => b.previsto - a.previsto)
 
@@ -101,72 +103,89 @@ export default async function DivisaoPage({
         </div>
       </div>
 
-      {/* Por irmão */}
-      <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">Por irmão</h2>
-      <Tabela>
-        <thead>
-          <tr>
-            <Th>Irmão</Th>
-            <Th className="text-right">Previsto por mês</Th>
-            <Th className="text-right">Recebido no mês</Th>
-            <Th className="text-right">Líquido no mês (após gastos)</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {irmaos.length === 0 && (
-            <VazioTabela
-              colunas={4}
-              mensagem="Cadastre o valor dos aluguéis e os percentuais dos irmãos nos imóveis."
-            />
-          )}
-          {irmaos.map((i) => (
-            <tr key={i.nome} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-              <Td className="font-medium text-gray-900 dark:text-gray-100">{i.nome}</Td>
-              <Td className="text-right text-gray-500">{brl(i.previsto)}</Td>
-              <Td className="text-right text-gray-500">{brl(i.recebido)}</Td>
-              <Td className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                {brl(i.liquido)}
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Tabela>
+      {/* Por irmão (sanfona: clique para ver o detalhe por imóvel) */}
+      <h2 className="mb-1 text-sm font-medium uppercase tracking-wide text-gray-400">Por irmão</h2>
+      <p className="mb-3 text-sm text-gray-500">
+        Clique no irmão para ver o detalhe por imóvel (previsto por mês)
+      </p>
 
-      {/* Detalhe por imóvel */}
-      {linhasPrev.length > 0 && (
-        <>
-          <h2 className="mb-3 mt-8 text-sm font-medium uppercase tracking-wide text-gray-400">
-            Detalhe por imóvel (previsto por mês)
-          </h2>
-          <Tabela>
-            <thead>
-              <tr>
-                <Th>Imóvel / unidade</Th>
-                <Th>Irmão</Th>
-                <Th className="text-right">%</Th>
-                <Th className="text-right">Aluguel</Th>
-                <Th className="text-right">Parte do irmão</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhasPrev.map((l) => (
-                <tr key={`${l.id_contrato}-${l.id_pessoa}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-                  <Td className="font-medium text-gray-900 dark:text-gray-100">
-                    {l.nome_imovel}
-                    {l.unidade ? <span className="text-gray-500"> · {l.unidade}</span> : ''}
-                  </Td>
-                  <Td>{l.nome_irmao}</Td>
-                  <Td className="text-right">{l.percentual}%</Td>
-                  <Td className="text-right text-gray-500">{brl(l.valor_mensal)}</Td>
-                  <Td className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                    {brl(l.valor_irmao)}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Tabela>
-        </>
+      {irmaos.length === 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          Cadastre o valor dos aluguéis e os pesos dos irmãos.
+        </div>
       )}
+
+      <div className="space-y-2">
+        {/* Cabeçalho das colunas */}
+        {irmaos.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 px-4 text-xs font-medium uppercase tracking-wide text-gray-400 sm:grid-cols-[1fr_repeat(3,8.5rem)_1.5rem]">
+            <span>Irmão</span>
+            <span className="hidden text-right sm:block">Previsto por mês</span>
+            <span className="hidden text-right sm:block">Recebido no mês</span>
+            <span className="text-right">Líquido (após gastos)</span>
+            <span className="hidden sm:block" />
+          </div>
+        )}
+
+        {irmaos.map((i) => (
+          <details
+            key={i.id}
+            className="group rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
+          >
+            <summary className="grid cursor-pointer list-none grid-cols-2 items-center gap-2 rounded-xl px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-800/40 sm:grid-cols-[1fr_repeat(3,8.5rem)_1.5rem] [&::-webkit-details-marker]:hidden">
+            <span className="font-medium text-gray-900 dark:text-gray-100">{i.nome}</span>
+              <span className="hidden text-right text-sm text-gray-500 sm:block">
+                {brl(i.previsto)}
+              </span>
+              <span className="hidden text-right text-sm text-gray-500 sm:block">
+                {brl(i.recebido)}
+              </span>
+              <span className="text-right text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                {brl(i.liquido)}
+              </span>
+              <span
+                aria-hidden
+                className="hidden justify-self-end text-gray-400 transition-transform group-open:rotate-180 sm:block"
+              >
+                ▾
+              </span>
+            </summary>
+
+            <div className="border-t border-gray-100 px-4 pb-4 pt-3 dark:border-gray-800">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+                Detalhe por imóvel (previsto por mês)
+              </p>
+              {i.detalhes.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  Este irmão ainda não recebe de nenhum aluguel.
+                </p>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {i.detalhes.map((l) => (
+                    <li
+                      key={`${l.id_contrato}-${l.id_pessoa}`}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                    >
+                      <span className="min-w-0 font-medium text-gray-900 dark:text-gray-100">
+                        {l.nome_imovel}
+                        {l.unidade ? <span className="text-gray-500"> · {l.unidade}</span> : ''}
+                      </span>
+                      <span className="flex items-center gap-4">
+                        <span className="text-gray-500">
+                          {brl(l.valor_mensal)} × {Number(l.percentual)}%
+                        </span>
+                        <span className="w-24 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                          {brl(l.valor_irmao)}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
     </div>
   )
 }

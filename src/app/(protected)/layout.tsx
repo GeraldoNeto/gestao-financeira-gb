@@ -10,6 +10,8 @@ const NAV: (NavItem & { adminOnly?: boolean })[] = [
   { href: '/cobrancas', label: 'Aluguéis', dica: 'Cobranças mensais: recebido e pendente por mês' },
   { href: '/pessoas', label: 'Irmãos', dica: 'Cadastro dos irmãos (co-donos)' },
   { href: '/divisao', label: 'Divisão', dica: 'Quanto cada irmão recebe por mês' },
+  { href: '/rateio', label: 'Rateio', dica: 'Distribuir um crédito de empresa entre as pessoas' },
+  { href: '/relatorios', label: 'Relatórios', dica: 'Relatórios com exportação para Excel, PDF e CSV' },
   { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
 ]
 

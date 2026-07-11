@@ -102,8 +102,9 @@ export default async function RelatoriosPage({
       {tipo === 'prestacao' && (
         <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
           A tabela abaixo mostra o rateio final. Baixe em <strong>Excel</strong> para a planilha
-          completa, com abas de <strong>aluguéis recebidos</strong>, <strong>despesas</strong> e o{' '}
-          <strong>rateio detalhado</strong> — tudo pronto para conferência.
+          completa, com abas de <strong>aluguéis recebidos</strong>, <strong>despesas</strong>,{' '}
+          <strong>repasses aos irmãos</strong> e o <strong>rateio detalhado</strong> — tudo pronto
+          para conferência.
         </p>
       )}
 

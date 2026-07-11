@@ -105,20 +105,32 @@ export type PrestacaoDespesa = {
   descontar_de: string
 }
 export type PrestacaoIrmao = {
+  id_pessoa: number
   nome: string
   recebido: number
   despesa_rateada: number
   liquido: number
+  repassado: number
+  a_transferir: number
+}
+export type PrestacaoRepasse = {
+  competencia: string
+  irmao: string
+  descricao: string
+  valor: number
 }
 export type DadosPrestacao = {
   de?: string
   ate?: string
   recebidos: PrestacaoRecebido[]
   despesas: PrestacaoDespesa[]
+  repasses: PrestacaoRepasse[]
   irmaos: PrestacaoIrmao[]
   totalRecebido: number
   totalDespesas: number
+  totalRepassado: number
   liquido: number
+  aTransferir: number
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -225,23 +237,37 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
   let qDiv = supabase
     .from('vw_divisao_alugueis')
     .select('id_pessoa, nome_irmao, valor_irmao, id_contrato')
+  let qPag = supabase
+    .from('pagamentos_irmao')
+    .select('competencia, id_pessoa, descricao, valor')
+    .order('competencia')
+    .order('id_pagamento')
   if (de) {
     qCob = qCob.gte('competencia', de)
     qDesp = qDesp.gte('competencia', de)
     qDiv = qDiv.gte('competencia', de)
+    qPag = qPag.gte('competencia', de)
   }
   if (ate) {
     qCob = qCob.lte('competencia', ate)
     qDesp = qDesp.lte('competencia', ate)
     qDiv = qDiv.lte('competencia', ate)
+    qPag = qPag.lte('competencia', ate)
   }
 
-  const [{ data: cob }, { data: desp }, { data: div }, { data: contratos }] = await Promise.all([
-    qCob,
-    qDesp,
-    qDiv,
-    supabase.from('vw_contratos').select('id_contrato, nome_imovel, unidade'),
-  ])
+  const [{ data: cob }, { data: desp }, { data: div }, { data: pag }, { data: contratos }, { data: pessoas }] =
+    await Promise.all([
+      qCob,
+      qDesp,
+      qDiv,
+      qPag,
+      supabase.from('vw_contratos').select('id_contrato, nome_imovel, unidade'),
+      supabase.from('pessoas_fisicas').select('id_pessoa, nome'),
+    ])
+
+  const nomePessoa = new Map(
+    ((pessoas as { id_pessoa: number; nome: string }[] | null) ?? []).map((p) => [p.id_pessoa, p.nome]),
+  )
 
   const rotuloContrato = new Map(
     ((contratos as { id_contrato: number; nome_imovel: string; unidade: string | null }[] | null) ?? []).map(
@@ -268,17 +294,49 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
   const totalDespesas = round2(despesas.reduce((s, d) => s + d.valor, 0))
   const liquido = round2(totalRecebido - totalDespesas)
 
+  // Repasses (boletos quitados) por irmão
+  const pagRows = ((pag as { competencia: string; id_pessoa: number; descricao: string; valor: number }[] | null) ?? [])
+  const repassadoPorIrmao = new Map<number, number>()
+  for (const p of pagRows) {
+    repassadoPorIrmao.set(p.id_pessoa, (repassadoPorIrmao.get(p.id_pessoa) ?? 0) + Number(p.valor))
+  }
+  const repasses: PrestacaoRepasse[] = pagRows.map((p) => ({
+    competencia: p.competencia,
+    irmao: nomePessoa.get(p.id_pessoa) ?? `#${p.id_pessoa}`,
+    descricao: p.descricao,
+    valor: Number(p.valor),
+  }))
+  const totalRepassado = round2(pagRows.reduce((s, p) => s + Number(p.valor), 0))
+
   const divRows =
     (div as { id_pessoa: number; nome_irmao: string; valor_irmao: number; id_contrato: number }[] | null) ??
     []
-  const irmaos: PrestacaoIrmao[] = calcularRateio(divRows, despParaRateio).irmaos.map((i) => ({
-    nome: i.nome,
-    recebido: i.recebido,
-    despesa_rateada: i.despesa,
-    liquido: i.liquido,
-  }))
+  const irmaos: PrestacaoIrmao[] = calcularRateio(divRows, despParaRateio).irmaos.map((i) => {
+    const repassado = round2(repassadoPorIrmao.get(i.id_pessoa) ?? 0)
+    return {
+      id_pessoa: i.id_pessoa,
+      nome: i.nome,
+      recebido: i.recebido,
+      despesa_rateada: i.despesa,
+      liquido: i.liquido,
+      repassado,
+      a_transferir: round2(i.liquido - repassado),
+    }
+  })
 
-  return { de, ate, recebidos, despesas, irmaos, totalRecebido, totalDespesas, liquido }
+  return {
+    de,
+    ate,
+    recebidos,
+    despesas,
+    repasses,
+    irmaos,
+    totalRecebido,
+    totalDespesas,
+    totalRepassado,
+    liquido,
+    aTransferir: round2(liquido - totalRepassado),
+  }
 }
 
 async function relPrestacao(supabase: DB, de?: string, ate?: string): Promise<Relatorio> {
@@ -288,12 +346,16 @@ async function relPrestacao(supabase: DB, de?: string, ate?: string): Promise<Re
     recebido: i.recebido,
     despesa_rateada: i.despesa_rateada,
     liquido: i.liquido,
+    repassado: i.repassado,
+    a_transferir: i.a_transferir,
   }))
   linhas.push({
     nome: 'TOTAL',
     recebido: d.totalRecebido,
     despesa_rateada: d.totalDespesas,
     liquido: d.liquido,
+    repassado: d.totalRepassado,
+    a_transferir: d.aTransferir,
   })
   return {
     titulo: 'Prestação de contas — rateio entre os irmãos',
@@ -303,6 +365,8 @@ async function relPrestacao(supabase: DB, de?: string, ate?: string): Promise<Re
       M('recebido', 'Recebido'),
       M('despesa_rateada', 'Despesas (rateio)'),
       M('liquido', 'Líquido a receber'),
+      M('repassado', 'Já repassado'),
+      M('a_transferir', 'A transferir'),
     ],
     linhas,
   }

@@ -28,11 +28,16 @@ export async function criarPessoa(_prev: CadState, formData: FormData): Promise<
   if (!campos.nome) return { error: 'O nome é obrigatório.' }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('pessoas_fisicas').insert(campos)
+  const { data, error } = await supabase
+    .from('pessoas_fisicas')
+    .insert(campos)
+    .select('id_pessoa')
+    .single()
   if (error) return { error: msgErroDB(error) }
 
   revalidatePath('/', 'layout')
-  redirect('/pessoas')
+  // Vai direto para a página do irmão, onde ficam os pesos dos aluguéis
+  redirect(`/pessoas/${(data as { id_pessoa: number }).id_pessoa}`)
 }
 
 export async function atualizarPessoa(

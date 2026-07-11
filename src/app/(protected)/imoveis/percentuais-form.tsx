@@ -28,7 +28,6 @@ export function PercentuaisImovelForm({
       }, 0),
     [valores],
   )
-  const totalOk = Math.abs(total - 100) < 0.005
 
   if (irmaos.length === 0) {
     return (
@@ -41,8 +40,8 @@ export function PercentuaisImovelForm({
   return (
     <form action={formAction} className="space-y-4">
       <p className="text-sm text-gray-500">
-        Defina o percentual de cada irmão sobre o aluguel recebido <strong>deste imóvel</strong>.
-        Idealmente somam <strong>100%</strong> (se não somarem, a divisão é feita proporcionalmente).
+        Defina quanto cada irmão recebe do aluguel <strong>deste imóvel</strong>. Os valores não
+        precisam somar 100% — a divisão é sempre feita <strong>proporcionalmente</strong> a eles.
       </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -69,9 +68,8 @@ export function PercentuaisImovelForm({
         ))}
       </div>
 
-      <p className={`text-sm font-medium ${totalOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-        Soma: {total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%
-        {totalOk ? ' ✓' : ' (o ideal é 100%)'}
+      <p className="text-sm text-gray-500">
+        Soma dos valores: {total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%
       </p>
 
       <ErroForm erro={state?.error} />

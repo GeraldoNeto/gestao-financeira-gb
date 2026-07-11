@@ -198,10 +198,18 @@ export default async function CobrancasPage({
                   −{brl(d.valor)}
                 </Td>
                 <Td className="text-right">
-                  <ExcluirButton
-                    action={excluirDespesa.bind(null, d.id_despesa)}
-                    confirmText={`Excluir o gasto "${d.descricao}" (${brl(d.valor)})?`}
-                  />
+                  <span className="inline-flex items-center gap-1">
+                    <Link
+                      href={`/cobrancas/despesas/${d.id_despesa}?mes=${mes}`}
+                      className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                    >
+                      Editar
+                    </Link>
+                    <ExcluirButton
+                      action={excluirDespesa.bind(null, d.id_despesa)}
+                      confirmText={`Excluir o gasto "${d.descricao}" (${brl(d.valor)})?`}
+                    />
+                  </span>
                 </Td>
               </tr>
             ))}

@@ -95,6 +95,34 @@ export async function criarDespesa(mes: string, formData: FormData): Promise<voi
   redirect(`/cobrancas?mes=${mes}`)
 }
 
+export type DespesaEditState = { error?: string } | undefined
+
+/** Altera a descrição e o valor de um gasto do mês. */
+export async function atualizarDespesa(
+  id: number,
+  mes: string,
+  _prev: DespesaEditState,
+  formData: FormData,
+): Promise<DespesaEditState> {
+  const descricao = String(formData.get('descricao') ?? '').trim()
+  const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+
+  if (!descricao) return { error: 'Informe a descrição do gasto.' }
+  if (valor === null || valor <= 0) return { error: 'Informe um valor válido.' }
+
+  const { supabase } = await usuarioAtual()
+  const { data, error } = await supabase
+    .from('despesas_mes')
+    .update({ descricao, valor })
+    .eq('id_despesa', id)
+    .select('id_despesa')
+  if (error) return { error: msgErroDB(error) }
+  if (!data?.length) return { error: 'Sem permissão para alterar.' }
+
+  revalidatePath('/', 'layout')
+  redirect(`/cobrancas?mes=${mes}`)
+}
+
 export async function excluirDespesa(id: number): Promise<{ error?: string } | void> {
   const { supabase } = await usuarioAtual()
   const { data, error } = await supabase

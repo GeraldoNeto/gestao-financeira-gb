@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import { PageHeader, Tabela, Th, Td, VazioTabela, btnSecondary } from '@/components/ui'
 import { ExcluirButton } from '@/components/excluir-button'
 import { brl, dataBR } from '@/lib/format'
 import { MovimentoForm } from './movimento-form'
-import { alterarStatusReserva, excluirReserva } from '../actions'
+import { alterarStatusReserva, excluirReserva, excluirMovimento } from '../actions'
 import type { ReservaMovimento } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -133,11 +134,12 @@ export default async function ReservaDetalhePage({
               <Th className="text-right">Crédito</Th>
               <Th className="text-right">Débito</Th>
               <Th className="text-right">Saldo</Th>
+              <Th className="text-right">Ações</Th>
             </tr>
           </thead>
           <tbody>
             {movimentos.length === 0 && (
-              <VazioTabela colunas={6} mensagem="Sem movimentações." />
+              <VazioTabela colunas={7} mensagem="Sem movimentações." />
             )}
             {movimentos.map((m) => (
               <tr key={m.id_movimento} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
@@ -151,6 +153,20 @@ export default async function ReservaDetalhePage({
                   {m.tipo === 'DEBITO' ? brl(m.valor) : brl(0)}
                 </Td>
                 <Td className="text-right font-semibold">{brl(m.saldo_apos)}</Td>
+                <Td className="text-right">
+                  <span className="inline-flex items-center gap-1">
+                    <Link
+                      href={`/reservas/movimento/${m.id_movimento}`}
+                      className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                    >
+                      Editar
+                    </Link>
+                    <ExcluirButton
+                      action={excluirMovimento.bind(null, m.id_movimento)}
+                      confirmText={`Excluir "${m.descricao}" (${brl(m.valor)})? Os saldos serão recalculados.`}
+                    />
+                  </span>
+                </Td>
               </tr>
             ))}
           </tbody>

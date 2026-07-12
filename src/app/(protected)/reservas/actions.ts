@@ -84,6 +84,62 @@ export async function alterarStatusReserva(idReserva: number, encerrar: boolean)
   revalidatePath('/', 'layout')
 }
 
+/** Exclui um lançamento do histórico e recalcula os saldos da reserva. */
+export async function excluirMovimento(idMovimento: number): Promise<{ error?: string } | void> {
+  const { supabase } = await usuarioAtual()
+  const { data: mov } = await supabase
+    .from('reserva_movimentos')
+    .select('id_reserva')
+    .eq('id_movimento', idMovimento)
+    .single()
+  if (!mov) return { error: 'Movimentação não encontrada.' }
+
+  const del = await supabase
+    .from('reserva_movimentos')
+    .delete()
+    .eq('id_movimento', idMovimento)
+    .select('id_movimento')
+  if (del.error) return { error: msgErroDB(del.error) }
+  if (!del.data?.length) return { error: 'Sem permissão para excluir.' }
+
+  const rec = await supabase.rpc('fn_reserva_recalcular', { p_id_reserva: mov.id_reserva })
+  if (rec.error) return { error: msgErroDB(rec.error) }
+
+  revalidatePath('/', 'layout')
+}
+
+export type MovEditState = { error?: string } | undefined
+
+/** Edita um lançamento do histórico e recalcula os saldos da reserva. */
+export async function atualizarMovimento(
+  idMovimento: number,
+  idReserva: number,
+  _prev: MovEditState,
+  formData: FormData,
+): Promise<MovEditState> {
+  const tipo = formData.get('tipo') === 'CREDITO' ? 'CREDITO' : 'DEBITO'
+  const descricao = String(formData.get('descricao') ?? '').trim()
+  const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+
+  if (!descricao) return { error: 'Informe a descrição.' }
+  if (valor === null || valor <= 0) return { error: 'Informe um valor válido.' }
+
+  const { supabase } = await usuarioAtual()
+  const upd = await supabase
+    .from('reserva_movimentos')
+    .update({ tipo, descricao, valor })
+    .eq('id_movimento', idMovimento)
+    .select('id_movimento')
+  if (upd.error) return { error: msgErroDB(upd.error) }
+  if (!upd.data?.length) return { error: 'Sem permissão para alterar.' }
+
+  const rec = await supabase.rpc('fn_reserva_recalcular', { p_id_reserva: idReserva })
+  if (rec.error) return { error: msgErroDB(rec.error) }
+
+  revalidatePath('/', 'layout')
+  redirect(`/reservas/${idReserva}`)
+}
+
 export async function excluirReserva(id: number): Promise<{ error?: string } | void> {
   const { supabase } = await usuarioAtual()
   const { data, error } = await supabase.from('reservas').delete().eq('id_reserva', id).select('id_reserva')

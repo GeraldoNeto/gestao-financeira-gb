@@ -444,6 +444,10 @@ export type Database = {
         }
         Returns: number
       }
+      fn_reserva_recalcular: {
+        Args: { p_id_reserva: number }
+        Returns: number
+      }
     }
   }
 }

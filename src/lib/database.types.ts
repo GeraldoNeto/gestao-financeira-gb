@@ -170,6 +170,28 @@ export type DespesaMes = {
   data_lancamento: string
 }
 
+export type Reserva = {
+  id_reserva: number
+  id_empresa: number
+  descricao: string
+  valor_inicial: number
+  saldo: number
+  status: 'ativa' | 'encerrada'
+  usuario: string | null
+  data_cadastro: string
+}
+
+export type ReservaMovimento = {
+  id_movimento: number
+  id_reserva: number
+  tipo: 'CREDITO' | 'DEBITO'
+  descricao: string
+  valor: number
+  saldo_apos: number
+  usuario: string | null
+  criado_em: string
+}
+
 export type ContaIrmaos = {
   id_conta: number
   competencia: string
@@ -361,6 +383,8 @@ export type Database = {
       despesas_mes: TableShape<DespesaMes>
       pagamentos_irmao: TableShape<PagamentoIrmao>
       contas_irmaos: TableShape<ContaIrmaos>
+      reservas: TableShape<Reserva>
+      reserva_movimentos: TableShape<ReservaMovimento>
     }
     Views: {
       vw_saldo_empresa: ViewShape<SaldoEmpresa>
@@ -391,6 +415,21 @@ export type Database = {
       }
       fn_gerar_cobrancas: {
         Args: { p_competencia: string; p_usuario?: string }
+        Returns: number
+      }
+      fn_criar_reserva: {
+        Args: { p_id_empresa: number; p_descricao: string; p_valor: number; p_usuario?: string }
+        Returns: number
+      }
+      fn_reserva_movimento: {
+        Args: {
+          p_id_reserva: number
+          p_tipo: string
+          p_descricao: string
+          p_valor: number
+          p_usuario?: string
+          p_permitir_negativo?: boolean
+        }
         Returns: number
       }
     }

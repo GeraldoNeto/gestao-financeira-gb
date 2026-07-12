@@ -13,6 +13,8 @@ const NAV: (NavItem & { adminOnly?: boolean })[] = [
   { href: '/contas', label: '5. Contas entre irmãos', dica: 'Compensações entre os irmãos (crédito/débito)' },
   { href: '/divisao', label: '6. Divisão', dica: 'Veja quanto cada irmão recebe' },
   { href: '/relatorios', label: '7. Relatórios', dica: 'Baixe em Excel, PDF ou CSV' },
+  { href: '/empresas', label: 'Empresas', dica: 'Cadastro de empresas' },
+  { href: '/reservas', label: 'Reservas', dica: 'Reservas de valores por empresa (fundos)' },
   { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
 ]
 

@@ -1,21 +1,46 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Sidebar, type NavItem } from '@/components/sidebar'
+import { Sidebar, type NavItem, type NavSecao } from '@/components/sidebar'
 import { signout } from '@/app/login/actions'
 
-// Itens do menu. `adminOnly` só aparece para o perfil administrador.
-const NAV: (NavItem & { adminOnly?: boolean })[] = [
-  { href: '/dashboard', label: 'Início', dica: 'Guia do fluxo e resumo do mês' },
-  { href: '/imoveis', label: '1. Imóveis', dica: 'Cadastre os imóveis da família' },
-  { href: '/contratos', label: '2. Aluguéis', dica: 'Cadastre cada aluguel e o valor mensal' },
-  { href: '/pessoas', label: '3. Irmãos', dica: 'Cadastre os irmãos e o peso de cada um nos aluguéis' },
-  { href: '/cobrancas', label: '4. Receber do mês', dica: 'Gere as cobranças do mês e dê baixa nas pagas' },
-  { href: '/contas', label: '5. Contas entre irmãos', dica: 'Compensações entre os irmãos (crédito/débito)' },
-  { href: '/divisao', label: '6. Divisão', dica: 'Veja quanto cada irmão recebe' },
-  { href: '/relatorios', label: '7. Relatórios', dica: 'Baixe em Excel, PDF ou CSV' },
-  { href: '/empresas', label: 'Empresas', dica: 'Cadastro de empresas' },
-  { href: '/reservas', label: 'Reservas', dica: 'Reservas de valores por empresa (fundos)' },
-  { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
+type Item = NavItem & { adminOnly?: boolean }
+
+// Menu em grupos, na ordem natural de uso:
+// Cadastros (feitos uma vez) → Todo mês (operação) → Financeiro → Administração.
+const NAV: { titulo?: string; items: Item[] }[] = [
+  {
+    items: [{ href: '/dashboard', label: 'Início', dica: 'Guia do fluxo e resumo do mês' }],
+  },
+  {
+    titulo: 'Cadastros',
+    items: [
+      { href: '/imoveis', label: '1. Imóveis', dica: 'Cadastre os imóveis da família' },
+      { href: '/contratos', label: '2. Aluguéis', dica: 'Cadastre cada aluguel, o valor mensal e as despesas' },
+      { href: '/pessoas', label: '3. Irmãos', dica: 'Cadastre os irmãos e o peso de cada um nos aluguéis' },
+    ],
+  },
+  {
+    titulo: 'Todo mês',
+    items: [
+      { href: '/cobrancas', label: '4. Receber aluguéis', dica: 'Gere as cobranças do mês, dê baixa nas pagas e lance os gastos' },
+      { href: '/contas', label: '5. Contas entre irmãos', dica: 'Compensações entre os irmãos (crédito/débito)' },
+      { href: '/divisao', label: '6. Divisão', dica: 'Veja quanto transferir para cada irmão' },
+      { href: '/relatorios', label: '7. Relatórios', dica: 'Prestação de contas em Excel, PDF ou CSV' },
+    ],
+  },
+  {
+    titulo: 'Financeiro',
+    items: [
+      { href: '/empresas', label: 'Empresas', dica: 'Cadastro de empresas' },
+      { href: '/reservas', label: 'Reservas', dica: 'Reservas de valores por empresa (fundos)' },
+    ],
+  },
+  {
+    titulo: 'Administração',
+    items: [
+      { href: '/usuarios', label: 'Usuários', dica: 'Gerenciar acessos ao sistema', adminOnly: true },
+    ],
+  },
 ]
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -38,15 +63,16 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   }
 
   const isAdmin = perfil?.perfil === 'administrador'
-  const items: NavItem[] = NAV.filter((i) => !i.adminOnly || isAdmin).map(({ href, label, dica }) => ({
-    href,
-    label,
-    dica,
-  }))
+  const secoes: NavSecao[] = NAV.map((s) => ({
+    titulo: s.titulo,
+    items: s.items
+      .filter((i) => !i.adminOnly || isAdmin)
+      .map(({ href, label, dica }) => ({ href, label, dica })),
+  })).filter((s) => s.items.length > 0)
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar items={items} nome={perfil?.nome ?? user.email ?? 'Usuário'} perfil={perfil?.perfil ?? 'consulta'} />
+      <Sidebar secoes={secoes} nome={perfil?.nome ?? user.email ?? 'Usuário'} perfil={perfil?.perfil ?? 'consulta'} />
       <main className="flex-1 overflow-auto p-4 pt-20 sm:p-6 lg:p-8 lg:pt-8">{children}</main>
     </div>
   )

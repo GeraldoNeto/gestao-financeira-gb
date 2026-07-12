@@ -16,6 +16,7 @@ export default async function InicioPage() {
     { count: qtdContratos },
     { count: qtdIrmaos },
     { data: pesos },
+    { count: qtdContas },
   ] = await Promise.all([
     supabase.from('vw_cobrancas').select('valor, status, situacao').eq('competencia', competencia),
     supabase.from('vw_divisao_prevista').select('*'),
@@ -23,6 +24,10 @@ export default async function InicioPage() {
     supabase.from('contratos').select('id_contrato', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('pessoas_fisicas').select('id_pessoa', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('contrato_pessoa_percentual').select('id_pessoa'),
+    supabase
+      .from('contas_irmaos')
+      .select('id_conta', { count: 'exact', head: true })
+      .eq('competencia', competencia),
   ])
 
   const cobrancas = (cobrancasMes as Pick<CobrancaView, 'valor' | 'status' | 'situacao'>[] | null) ?? []
@@ -92,13 +97,23 @@ export default async function InicioPage() {
     },
     {
       num: 5,
+      href: '/contas',
+      titulo: 'Acerte as contas entre irmãos',
+      status:
+        (qtdContas ?? 0) > 0
+          ? s(qtdContas ?? 0, 'operação no mês', 'operações no mês')
+          : 'Opcional — compensações entre irmãos',
+      feito: (qtdContas ?? 0) > 0,
+    },
+    {
+      num: 6,
       href: '/divisao',
       titulo: 'Confira a divisão',
       status: irmaos.length > 0 ? 'Divisão calculada automaticamente' : 'Aguardando os passos anteriores',
       feito: irmaos.length > 0,
     },
     {
-      num: 6,
+      num: 7,
       href: '/relatorios',
       titulo: 'Baixe os relatórios',
       status: 'Excel, PDF ou CSV',

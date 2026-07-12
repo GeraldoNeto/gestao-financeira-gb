@@ -8,13 +8,14 @@ import { Tooltip } from '@/components/ui'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 export type NavItem = { href: string; label: string; dica: string }
+export type NavSecao = { titulo?: string; items: NavItem[] }
 
 export function Sidebar({
-  items,
+  secoes,
   nome,
   perfil,
 }: {
-  items: NavItem[]
+  secoes: NavSecao[]
   nome: string
   perfil: string
 }) {
@@ -90,13 +91,22 @@ export function Sidebar({
       {/* Sidebar desktop */}
       <aside className="hidden w-60 flex-col border-r border-gray-200 bg-white lg:flex dark:border-gray-800 dark:bg-gray-900">
         {brand}
-        <nav className="flex-1 space-y-1 p-3">
-          {items.map((item) => (
-            <Tooltip key={item.href} texto={item.dica} lado="direita" className="block">
-              <Link href={item.href} className={linkCls(item.href)}>
-                {item.label}
-              </Link>
-            </Tooltip>
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+          {secoes.map((secao, i) => (
+            <div key={secao.titulo ?? i} className="space-y-1">
+              {secao.titulo && (
+                <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  {secao.titulo}
+                </p>
+              )}
+              {secao.items.map((item) => (
+                <Tooltip key={item.href} texto={item.dica} lado="direita" className="block">
+                  <Link href={item.href} className={linkCls(item.href)}>
+                    {item.label}
+                  </Link>
+                </Tooltip>
+              ))}
+            </div>
           ))}
         </nav>
         {rodape}
@@ -108,17 +118,26 @@ export function Sidebar({
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setAberto(false)} />
           <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-xl dark:bg-gray-900">
             {brand}
-            <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-              {items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={item.dica}
-                  onClick={() => setAberto(false)}
-                  className={linkCls(item.href)}
-                >
-                  {item.label}
-                </Link>
+            <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+              {secoes.map((secao, i) => (
+                <div key={secao.titulo ?? i} className="space-y-1">
+                  {secao.titulo && (
+                    <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                      {secao.titulo}
+                    </p>
+                  )}
+                  {secao.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={item.dica}
+                      onClick={() => setAberto(false)}
+                      className={linkCls(item.href)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               ))}
             </nav>
             {rodape}

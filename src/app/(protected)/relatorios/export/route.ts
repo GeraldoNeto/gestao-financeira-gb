@@ -162,17 +162,25 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
 
   // ===== Aba 1: Resumo (com o rateio final) =====
   const resumo = wb.addWorksheet('Resumo', { views: [{ showGridLines: false }] })
-  resumo.columns = [{ width: 30 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
+  resumo.columns = [
+    { width: 30 },
+    { width: 15 },
+    { width: 15 },
+    { width: 15 },
+    { width: 15 },
+    { width: 16 },
+    { width: 15 },
+  ]
 
-  resumo.mergeCells('A1:F1')
+  resumo.mergeCells('A1:G1')
   const t1 = resumo.getCell('A1')
   t1.value = 'Prestação de Contas — Aluguéis'
   t1.font = { bold: true, size: 16 }
 
-  resumo.mergeCells('A2:F2')
+  resumo.mergeCells('A2:G2')
   resumo.getCell('A2').value = `Período: ${periodoLabel(d)}`
   resumo.getCell('A2').font = { color: { argb: 'FF666666' } }
-  resumo.mergeCells('A3:F3')
+  resumo.mergeCells('A3:G3')
   resumo.getCell('A3').value = `Emitido em ${dataBR(hojeISO())}`
   resumo.getCell('A3').font = { color: { argb: 'FF666666' } }
 
@@ -199,27 +207,35 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
 
   // Tabela do rateio por irmão
   r += 1
-  resumo.mergeCells(`A${r}:F${r}`)
+  resumo.mergeCells(`A${r}:G${r}`)
   resumo.getCell(`A${r}`).value = 'Rateio entre os irmãos'
   resumo.getCell(`A${r}`).font = { bold: true, size: 12 }
   r++
 
   const headRow = resumo.getRow(r)
-  headRow.values = ['Irmão', 'Recebido', 'Despesas (rateio)', 'Líquido a receber', 'Já repassado', 'A transferir']
+  headRow.values = [
+    'Irmão',
+    'Recebido',
+    'Despesas (rateio)',
+    'Líquido a receber',
+    'Já repassado',
+    'Saldo entre irmãos',
+    'A transferir',
+  ]
   estiloHeader(headRow)
   r++
 
   for (const i of d.irmaos) {
     const row = resumo.getRow(r)
-    row.values = [i.nome, i.recebido, i.despesa_rateada, i.liquido, i.repassado, i.a_transferir]
-    for (let c = 2; c <= 6; c++) row.getCell(c).numFmt = MONEY_FMT
-    row.getCell(6).font = { bold: true, color: { argb: VERDE } }
+    row.values = [i.nome, i.recebido, i.despesa_rateada, i.liquido, i.repassado, i.saldo_irmaos, i.a_transferir]
+    for (let c = 2; c <= 7; c++) row.getCell(c).numFmt = MONEY_FMT
+    row.getCell(7).font = { bold: true, color: { argb: VERDE } }
     r++
   }
 
   const totalRow = resumo.getRow(r)
-  totalRow.values = ['TOTAL', d.totalRecebido, d.totalDespesas, d.liquido, d.totalRepassado, d.aTransferir]
-  for (let c = 2; c <= 6; c++) totalRow.getCell(c).numFmt = MONEY_FMT
+  totalRow.values = ['TOTAL', d.totalRecebido, d.totalDespesas, d.liquido, d.totalRepassado, 0, d.aTransferir]
+  for (let c = 2; c <= 7; c++) totalRow.getCell(c).numFmt = MONEY_FMT
   estiloTotal(totalRow)
 
   // ===== Aba 2: Aluguéis recebidos =====
@@ -295,6 +311,29 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
   const totRep = ws4.addRow({ descricao: 'TOTAL REPASSADO', valor: d.totalRepassado })
   totRep.getCell('valor').numFmt = MONEY_FMT
   estiloTotal(totRep)
+
+  // ===== Aba 5: Contas entre irmãos =====
+  const ws5 = wb.addWorksheet('Contas entre irmãos', { views: [{ state: 'frozen', ySplit: 1 }] })
+  ws5.columns = [
+    { header: 'Mês', key: 'mes', width: 12 },
+    { header: 'De (credor)', key: 'credor', width: 22 },
+    { header: 'Para (devedor)', key: 'devedor', width: 22 },
+    { header: 'Descrição', key: 'descricao', width: 32 },
+    { header: 'Moeda', key: 'moeda', width: 10 },
+    { header: 'Valor em R$', key: 'valor', width: 16 },
+  ]
+  estiloHeader(ws5.getRow(1))
+  for (const c of d.contas) {
+    const row = ws5.addRow({
+      mes: competenciaBR(c.competencia),
+      credor: c.credor,
+      devedor: c.devedor,
+      descricao: c.descricao,
+      moeda: c.moeda,
+      valor: c.valor_brl,
+    })
+    row.getCell('valor').numFmt = MONEY_FMT
+  }
 
   const buf = await wb.xlsx.writeBuffer()
   return new Uint8Array(buf)

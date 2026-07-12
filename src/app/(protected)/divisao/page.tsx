@@ -5,7 +5,7 @@ import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnPrimary, btnSec
 import { ExcluirButton } from '@/components/excluir-button'
 import { calcularRateio } from '../relatorios/data'
 import { criarPagamento, excluirPagamento } from './actions'
-import type { DivisaoAluguel, DivisaoPrevista, PagamentoIrmao } from '@/lib/database.types'
+import type { DivisaoAluguel, DivisaoPrevista, PagamentoIrmao, ContaIrmaos } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,21 +21,31 @@ export default async function DivisaoPage({
   const competencia = `${mes}-01`
 
   const supabase = await createClient()
-  const [{ data: prevista }, { data: recebida }, { data: despesas }, { data: pagamentos }, { data: pessoas }] =
-    await Promise.all([
-      supabase.from('vw_divisao_prevista').select('*').order('nome_imovel').order('nome_irmao'),
-      supabase
-        .from('vw_divisao_alugueis')
-        .select('id_pessoa, nome_irmao, valor_irmao, id_contrato')
-        .eq('competencia', competencia),
-      supabase.from('despesas_mes').select('valor, id_contrato').eq('competencia', competencia),
-      supabase
-        .from('pagamentos_irmao')
-        .select('*')
-        .eq('competencia', competencia)
-        .order('id_pagamento'),
-      supabase.from('pessoas_fisicas').select('id_pessoa, nome').eq('status', 'ativo').order('nome'),
-    ])
+  const [
+    { data: prevista },
+    { data: recebida },
+    { data: despesas },
+    { data: pagamentos },
+    { data: pessoas },
+    { data: contas },
+  ] = await Promise.all([
+    supabase.from('vw_divisao_prevista').select('*').order('nome_imovel').order('nome_irmao'),
+    supabase
+      .from('vw_divisao_alugueis')
+      .select('id_pessoa, nome_irmao, valor_irmao, id_contrato')
+      .eq('competencia', competencia),
+    supabase.from('despesas_mes').select('valor, id_contrato').eq('competencia', competencia),
+    supabase
+      .from('pagamentos_irmao')
+      .select('*')
+      .eq('competencia', competencia)
+      .order('id_pagamento'),
+    supabase.from('pessoas_fisicas').select('id_pessoa, nome').eq('status', 'ativo').order('nome'),
+    supabase
+      .from('contas_irmaos')
+      .select('id_origem, id_destino, valor_brl')
+      .eq('competencia', competencia),
+  ])
 
   const linhasPrev = (prevista as DivisaoPrevista[] | null) ?? []
   const linhasReceb =
@@ -58,6 +68,14 @@ export default async function DivisaoPage({
     pagoPorIrmao.set(p.id_pessoa, (pagoPorIrmao.get(p.id_pessoa) ?? 0) + Number(p.valor))
   }
 
+  // Saldo entre irmãos no mês: credor (origem) +, devedor (destino) −
+  const contasRows = (contas as Pick<ContaIrmaos, 'id_origem' | 'id_destino' | 'valor_brl'>[] | null) ?? []
+  const saldoIrmaosPorId = new Map<number, number>()
+  for (const c of contasRows) {
+    saldoIrmaosPorId.set(c.id_origem, (saldoIrmaosPorId.get(c.id_origem) ?? 0) + Number(c.valor_brl))
+    saldoIrmaosPorId.set(c.id_destino, (saldoIrmaosPorId.get(c.id_destino) ?? 0) - Number(c.valor_brl))
+  }
+
   // Rateio do recebido, com os gastos (gerais ou por aluguel) já descontados
   const rateio = calcularRateio(linhasReceb, despRows)
   const totalPrevisto = linhasPrev.reduce((s, l) => s + Number(l.valor_irmao), 0)
@@ -75,6 +93,7 @@ export default async function DivisaoPage({
     ...previstoPorIrmao.keys(),
     ...rateio.irmaos.map((i) => i.id_pessoa),
     ...pagoPorIrmao.keys(),
+    ...saldoIrmaosPorId.keys(),
   ])
   const rateioPorId = new Map(rateio.irmaos.map((i) => [i.id_pessoa, i]))
 
@@ -82,13 +101,15 @@ export default async function DivisaoPage({
     .map((id) => {
       const liquido = rateioPorId.get(id)?.liquido ?? 0
       const pago = pagoPorIrmao.get(id) ?? 0
+      const saldoIrmaos = round2(saldoIrmaosPorId.get(id) ?? 0)
       return {
         id,
         nome: nomePorId.get(id) ?? '',
         recebido: rateioPorId.get(id)?.recebido ?? 0,
         liquido,
         pago,
-        aTransferir: round2(liquido - pago),
+        saldoIrmaos,
+        aTransferir: round2(liquido - pago + saldoIrmaos),
         detalhes: linhasPrev.filter((l) => l.id_pessoa === id),
       }
     })
@@ -144,9 +165,9 @@ export default async function DivisaoPage({
         {irmaos.length > 0 && (
           <div className="grid grid-cols-2 gap-2 px-4 text-xs font-medium uppercase tracking-wide text-gray-400 sm:grid-cols-[1fr_repeat(4,7rem)_1.5rem]">
             <span>Irmão</span>
-            <span className="hidden text-right sm:block">Recebido</span>
             <span className="hidden text-right sm:block">Líquido</span>
             <span className="hidden text-right sm:block">Já repassado</span>
+            <span className="hidden text-right sm:block">Saldo entre irmãos</span>
             <span className="text-right">A transferir</span>
             <span className="hidden sm:block" />
           </div>
@@ -159,10 +180,20 @@ export default async function DivisaoPage({
           >
             <summary className="grid cursor-pointer list-none grid-cols-2 items-center gap-2 rounded-xl px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-800/40 sm:grid-cols-[1fr_repeat(4,7rem)_1.5rem] [&::-webkit-details-marker]:hidden">
               <span className="font-medium text-gray-900 dark:text-gray-100">{i.nome}</span>
-              <span className="hidden text-right text-sm text-gray-500 sm:block">{brl(i.recebido)}</span>
               <span className="hidden text-right text-sm text-gray-500 sm:block">{brl(i.liquido)}</span>
               <span className="hidden text-right text-sm text-red-500 sm:block">
                 {i.pago > 0 ? `−${brl(i.pago)}` : brl(0)}
+              </span>
+              <span
+                className={`hidden text-right text-sm sm:block ${
+                  i.saldoIrmaos > 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : i.saldoIrmaos < 0
+                      ? 'text-red-500'
+                      : 'text-gray-400'
+                }`}
+              >
+                {i.saldoIrmaos > 0 ? `+${brl(i.saldoIrmaos)}` : i.saldoIrmaos < 0 ? brl(i.saldoIrmaos) : brl(0)}
               </span>
               <span className="text-right text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                 {brl(i.aTransferir)}

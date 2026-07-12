@@ -7,6 +7,54 @@ import { msgErroDB } from '@/lib/db-errors'
 import { parseValorBRL, hojeISO } from '@/lib/format'
 import type { StatusRegistro } from '@/lib/database.types'
 
+async function usuarioAtual() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return { supabase, usuario: ((user?.user_metadata?.nome as string) || user?.email) ?? null }
+}
+
+/** Cadastra uma despesa (IPTU, manutenção, seguro…) vinculada a este aluguel.
+ *  Vira um gasto de despesas_mes: descontado da divisão no mês da data. */
+export async function criarDespesaAluguel(idContrato: number, formData: FormData): Promise<void> {
+  const descricao = String(formData.get('descricao') ?? '').trim()
+  const data = String(formData.get('data') ?? '').trim()
+  const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+  const back = `/contratos/${idContrato}`
+
+  if (!descricao || !/^\d{4}-\d{2}-\d{2}$/.test(data) || valor === null || valor <= 0) {
+    redirect(`${back}?erro=${encodeURIComponent('Informe a descrição, a data e um valor válido.')}`)
+  }
+
+  const { supabase, usuario } = await usuarioAtual()
+  const { error } = await supabase.from('despesas_mes').insert({
+    id_contrato: idContrato,
+    competencia: `${data.slice(0, 7)}-01`,
+    data,
+    descricao,
+    valor,
+    usuario,
+  })
+  if (error) redirect(`${back}?erro=${encodeURIComponent(msgErroDB(error))}`)
+
+  revalidatePath('/', 'layout')
+  redirect(back)
+}
+
+export async function excluirDespesaAluguel(id: number): Promise<{ error?: string } | void> {
+  const { supabase } = await usuarioAtual()
+  const { data, error } = await supabase
+    .from('despesas_mes')
+    .delete()
+    .eq('id_despesa', id)
+    .select('id_despesa')
+  if (error) return { error: msgErroDB(error) }
+  if (!data?.length) return { error: 'Sem permissão para excluir.' }
+
+  revalidatePath('/', 'layout')
+}
+
 export type ContratoState = { error?: string } | undefined
 
 type ContratoInput = {

@@ -113,21 +113,34 @@ export async function atualizarDespesa(
   const descricao = String(formData.get('descricao') ?? '').trim()
   const valor = parseValorBRL(String(formData.get('valor') ?? ''))
   const idContrato = lerContrato(formData)
+  const dataRaw = String(formData.get('data') ?? '').trim()
+  const dataDespesa = /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : null
+  const voltar = String(formData.get('voltar') ?? '').trim()
 
   if (!descricao) return { error: 'Informe a descrição do gasto.' }
   if (valor === null || valor <= 0) return { error: 'Informe um valor válido.' }
 
+  // Se tem data, a competência (mês do rateio) acompanha o mês da data
+  const patch: {
+    descricao: string
+    valor: number
+    id_contrato: number | null
+    data: string | null
+    competencia?: string
+  } = { descricao, valor, id_contrato: idContrato, data: dataDespesa }
+  if (dataDespesa) patch.competencia = `${dataDespesa.slice(0, 7)}-01`
+
   const { supabase } = await usuarioAtual()
   const { data, error } = await supabase
     .from('despesas_mes')
-    .update({ descricao, valor, id_contrato: idContrato })
+    .update(patch)
     .eq('id_despesa', id)
     .select('id_despesa')
   if (error) return { error: msgErroDB(error) }
   if (!data?.length) return { error: 'Sem permissão para alterar.' }
 
   revalidatePath('/', 'layout')
-  redirect(`/cobrancas?mes=${mes}`)
+  redirect(voltar && voltar.startsWith('/') ? voltar : `/cobrancas?mes=${mes}`)
 }
 
 export async function excluirDespesa(id: number): Promise<{ error?: string } | void> {

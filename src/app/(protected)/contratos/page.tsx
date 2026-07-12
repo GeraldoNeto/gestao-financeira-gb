@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { brl, dataBR } from '@/lib/format'
-import { PageHeader, Tabela, Th, Td, BadgeStatus, VazioTabela } from '@/components/ui'
+import { brl, dataBR, competenciaBR } from '@/lib/format'
+import { PageHeader, BadgeStatus, VazioTabela, Tabela, Th, Td } from '@/components/ui'
 import { ExcluirButton } from '@/components/excluir-button'
 import { excluirContrato } from './actions'
-import type { ContratoView } from '@/lib/database.types'
+import type { ContratoView, DespesaMes } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +22,23 @@ export default async function ContratosPage({
   const { data } = await q
   const contratos = (data as ContratoView[] | null) ?? []
 
+  // Despesas adicionais de cada aluguel (para a sanfona)
+  const ids = contratos.map((c) => c.id_contrato)
+  const { data: despesasData } = ids.length
+    ? await supabase
+        .from('despesas_mes')
+        .select('*')
+        .in('id_contrato', ids)
+        .order('data', { ascending: false, nullsFirst: false })
+        .order('competencia', { ascending: false })
+    : { data: [] }
+  const despesasPorContrato = new Map<number, DespesaMes[]>()
+  for (const d of (despesasData as DespesaMes[] | null) ?? []) {
+    const arr = despesasPorContrato.get(d.id_contrato!) ?? []
+    arr.push(d)
+    despesasPorContrato.set(d.id_contrato!, arr)
+  }
+
   const nomeImovel = contratos[0]?.nome_imovel
 
   return (
@@ -36,51 +53,101 @@ export default async function ContratosPage({
         acao={{ href: '/contratos/nova', label: '+ Novo contrato' }}
       />
 
-      <Tabela>
-        <thead>
-          <tr>
-            <Th>Imóvel</Th>
-            <Th>Unidade</Th>
-            <Th className="text-right">Valor mensal</Th>
-            <Th className="text-right">Venc.</Th>
-            <Th>Período</Th>
-            <Th>Status</Th>
-            <Th className="text-right">Ações</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {contratos.length === 0 && (
-            <VazioTabela colunas={7} mensagem="Nenhum contrato cadastrado ainda." />
-          )}
-          {contratos.map((c) => (
-            <tr key={c.id_contrato} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-              <Td className="font-medium text-gray-900 dark:text-gray-100">{c.nome_imovel}</Td>
-              <Td>{c.unidade ?? '—'}</Td>
-              <Td className="text-right font-semibold">{brl(c.valor_mensal)}</Td>
-              <Td className="text-right">dia {c.dia_vencimento}</Td>
-              <Td className="text-gray-500">
-                {dataBR(c.data_inicio)}
-                {c.data_fim ? ` – ${dataBR(c.data_fim)}` : ' – vigente'}
-              </Td>
-              <Td>
-                <BadgeStatus status={c.status} />
-              </Td>
-              <Td className="text-right">
-                <Link
-                  href={`/contratos/${c.id_contrato}`}
-                  className="mr-1 rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
-                >
-                  Editar
-                </Link>
-                <ExcluirButton
-                  action={excluirContrato.bind(null, c.id_contrato)}
-                  confirmText={`Excluir o contrato do imóvel ${c.nome_imovel}${c.unidade ? ' · ' + c.unidade : ''}?`}
-                />
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Tabela>
+      {contratos.length === 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          Nenhum contrato cadastrado ainda.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {contratos.map((c) => {
+          const despesas = despesasPorContrato.get(c.id_contrato) ?? []
+          const total = despesas.reduce((s, d) => s + Number(d.valor), 0)
+          return (
+            <div
+              key={c.id_contrato}
+              className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
+            >
+              {/* Linha do aluguel */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {c.nome_imovel}
+                    {c.unidade ? <span className="text-gray-500"> · {c.unidade}</span> : ''}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {brl(c.valor_mensal)} · venc. dia {c.dia_vencimento} · {dataBR(c.data_inicio)}
+                    {c.data_fim ? ` – ${dataBR(c.data_fim)}` : ' – vigente'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <BadgeStatus status={c.status} />
+                  <Link
+                    href={`/contratos/${c.id_contrato}`}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                  >
+                    Editar
+                  </Link>
+                  <ExcluirButton
+                    action={excluirContrato.bind(null, c.id_contrato)}
+                    confirmText={`Excluir o contrato do imóvel ${c.nome_imovel}${c.unidade ? ' · ' + c.unidade : ''}?`}
+                  />
+                </div>
+              </div>
+
+              {/* Sanfona: despesas adicionais deste aluguel */}
+              <details className="group border-t border-gray-100 dark:border-gray-800">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/40 [&::-webkit-details-marker]:hidden">
+                  <span>
+                    Despesas adicionais{' '}
+                    <span className="text-gray-400">({despesas.length})</span>
+                    {total > 0 && (
+                      <span className="ml-2 font-medium text-red-600 dark:text-red-400">
+                        −{brl(total)}
+                      </span>
+                    )}
+                  </span>
+                  <span aria-hidden className="text-gray-400 transition-transform group-open:rotate-180">
+                    ▾
+                  </span>
+                </summary>
+                <div className="px-4 pb-3">
+                  <Tabela>
+                    <thead>
+                      <tr>
+                        <Th>Descrição</Th>
+                        <Th>Data</Th>
+                        <Th className="text-right">Valor</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {despesas.length === 0 && (
+                        <VazioTabela
+                          colunas={3}
+                          mensagem="Nenhuma despesa. Cadastre em “Editar”."
+                        />
+                      )}
+                      {despesas.map((d) => (
+                        <tr key={d.id_despesa}>
+                          <Td className="font-medium text-gray-900 dark:text-gray-100">
+                            {d.descricao}
+                          </Td>
+                          <Td className="text-gray-500">
+                            {d.data ? dataBR(d.data) : competenciaBR(d.competencia)}
+                          </Td>
+                          <Td className="text-right font-semibold text-red-600 dark:text-red-400">
+                            −{brl(d.valor)}
+                          </Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Tabela>
+                </div>
+              </details>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

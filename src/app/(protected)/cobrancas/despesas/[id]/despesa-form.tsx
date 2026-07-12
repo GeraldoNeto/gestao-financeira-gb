@@ -8,15 +8,19 @@ import type { DespesaEditState } from '../../actions'
 export function FormDespesa({
   descricao,
   valor,
+  data,
   idContrato,
   alugueis,
+  voltar,
   voltarPara,
   action,
 }: {
   descricao: string
   valor: string
+  data: string
   idContrato: number | null
   alugueis: { id: number; label: string }[]
+  voltar?: string
   voltarPara: string
   action: (prev: DespesaEditState, formData: FormData) => Promise<DespesaEditState>
 }) {
@@ -30,6 +34,7 @@ export function FormDespesa({
       action={formAction}
       className="max-w-xl space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
     >
+      {voltar && <input type="hidden" name="voltar" value={voltar} />}
       <Campo label="Descrição *">
         <input
           name="descricao"
@@ -39,6 +44,14 @@ export function FormDespesa({
           placeholder="Ex.: conserto do telhado, IPTU"
         />
       </Campo>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Campo label="Data">
+          <input type="date" name="data" defaultValue={data} className={inputClass} />
+        </Campo>
+        <Campo label="Valor (R$) *">
+          <input name="valor" required defaultValue={valor} className={inputClass} placeholder="0,00" />
+        </Campo>
+      </div>
       <Campo label="Descontar de">
         <select name="id_contrato" defaultValue={idContrato ?? ''} className={inputClass}>
           <option value="">Todos os aluguéis (geral)</option>
@@ -48,9 +61,6 @@ export function FormDespesa({
             </option>
           ))}
         </select>
-      </Campo>
-      <Campo label="Valor (R$) *">
-        <input name="valor" required defaultValue={valor} className={inputClass} placeholder="0,00" />
       </Campo>
 
       <ErroForm erro={state?.error} />

@@ -165,6 +165,7 @@ export type DespesaMes = {
   descricao: string
   valor: number
   id_contrato: number | null
+  data: string | null
   usuario: string | null
   data_lancamento: string
 }

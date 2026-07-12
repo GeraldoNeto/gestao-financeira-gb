@@ -4,6 +4,7 @@ import { brl, competenciaBR, mesAtual } from '@/lib/format'
 import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnPrimary, btnSecondary } from '@/components/ui'
 import { ExcluirButton } from '@/components/excluir-button'
 import { calcularRateio } from '../relatorios/data'
+import { recorrentesNaCompetencia, type Recorrente } from '@/lib/despesas'
 import { criarPagamento, excluirPagamento } from './actions'
 import type { DivisaoAluguel, DivisaoPrevista, PagamentoIrmao, ContaIrmaos } from '@/lib/database.types'
 
@@ -28,6 +29,7 @@ export default async function DivisaoPage({
     { data: pagamentos },
     { data: pessoas },
     { data: contas },
+    { data: recorrData },
   ] = await Promise.all([
     supabase.from('vw_divisao_prevista').select('*').order('nome_imovel').order('nome_irmao'),
     supabase
@@ -45,13 +47,21 @@ export default async function DivisaoPage({
       .from('contas_irmaos')
       .select('id_origem, id_destino, valor_brl')
       .eq('competencia', competencia),
+    supabase.from('despesas_recorrentes').select('*'),
   ])
 
   const linhasPrev = (prevista as DivisaoPrevista[] | null) ?? []
   const linhasReceb =
     (recebida as Pick<DivisaoAluguel, 'id_pessoa' | 'nome_irmao' | 'valor_irmao' | 'id_contrato'>[] | null) ??
     []
-  const despRows = (despesas as { valor: number; id_contrato: number | null }[] | null) ?? []
+  const recorrentesMes = recorrentesNaCompetencia(
+    (recorrData as Recorrente[] | null) ?? [],
+    competencia,
+  ).map((r) => ({ valor: r.valor, id_contrato: r.id_contrato }))
+  const despRows = [
+    ...((despesas as { valor: number; id_contrato: number | null }[] | null) ?? []),
+    ...recorrentesMes,
+  ]
   const repasses = (pagamentos as PagamentoIrmao[] | null) ?? []
   const listaIrmaos = (pessoas as { id_pessoa: number; nome: string }[] | null) ?? []
   const gastos = despRows.reduce((s, d) => s + Number(d.valor), 0)

@@ -4,7 +4,7 @@ import { brl, dataBR, competenciaBR } from '@/lib/format'
 import { PageHeader, BadgeStatus, VazioTabela, Tabela, Th, Td } from '@/components/ui'
 import { ExcluirButton } from '@/components/excluir-button'
 import { excluirContrato } from './actions'
-import type { ContratoView, DespesaMes } from '@/lib/database.types'
+import type { ContratoView, DespesaMes, DespesaRecorrente } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,19 +24,32 @@ export default async function ContratosPage({
 
   // Despesas adicionais de cada aluguel (para a sanfona)
   const ids = contratos.map((c) => c.id_contrato)
-  const { data: despesasData } = ids.length
-    ? await supabase
-        .from('despesas_mes')
-        .select('*')
-        .in('id_contrato', ids)
-        .order('data', { ascending: false, nullsFirst: false })
-        .order('competencia', { ascending: false })
-    : { data: [] }
+  const [{ data: despesasData }, { data: recorrData }] = ids.length
+    ? await Promise.all([
+        supabase
+          .from('despesas_mes')
+          .select('*')
+          .in('id_contrato', ids)
+          .order('data', { ascending: false, nullsFirst: false })
+          .order('competencia', { ascending: false }),
+        supabase
+          .from('despesas_recorrentes')
+          .select('*')
+          .in('id_contrato', ids)
+          .order('id_recorrente', { ascending: false }),
+      ])
+    : [{ data: [] }, { data: [] }]
   const despesasPorContrato = new Map<number, DespesaMes[]>()
   for (const d of (despesasData as DespesaMes[] | null) ?? []) {
     const arr = despesasPorContrato.get(d.id_contrato!) ?? []
     arr.push(d)
     despesasPorContrato.set(d.id_contrato!, arr)
+  }
+  const recorrPorContrato = new Map<number, DespesaRecorrente[]>()
+  for (const r of (recorrData as DespesaRecorrente[] | null) ?? []) {
+    const arr = recorrPorContrato.get(r.id_contrato) ?? []
+    arr.push(r)
+    recorrPorContrato.set(r.id_contrato, arr)
   }
 
   const nomeImovel = contratos[0]?.nome_imovel
@@ -62,7 +75,8 @@ export default async function ContratosPage({
       <div className="space-y-3">
         {contratos.map((c) => {
           const despesas = despesasPorContrato.get(c.id_contrato) ?? []
-          const total = despesas.reduce((s, d) => s + Number(d.valor), 0)
+          const recorrentes = recorrPorContrato.get(c.id_contrato) ?? []
+          const totalRecorr = recorrentes.reduce((s, r) => s + Number(r.valor), 0)
           return (
             <div
               key={c.id_contrato}
@@ -100,10 +114,10 @@ export default async function ContratosPage({
                 <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/40 [&::-webkit-details-marker]:hidden">
                   <span>
                     Despesas adicionais{' '}
-                    <span className="text-gray-400">({despesas.length})</span>
-                    {total > 0 && (
+                    <span className="text-gray-400">({despesas.length + recorrentes.length})</span>
+                    {totalRecorr > 0 && (
                       <span className="ml-2 font-medium text-red-600 dark:text-red-400">
-                        −{brl(total)}
+                        −{brl(totalRecorr)}/mês
                       </span>
                     )}
                   </span>
@@ -116,17 +130,34 @@ export default async function ContratosPage({
                     <thead>
                       <tr>
                         <Th>Descrição</Th>
-                        <Th>Data</Th>
+                        <Th>Quando</Th>
                         <Th className="text-right">Valor</Th>
                       </tr>
                     </thead>
                     <tbody>
-                      {despesas.length === 0 && (
+                      {despesas.length === 0 && recorrentes.length === 0 && (
                         <VazioTabela
                           colunas={3}
                           mensagem="Nenhuma despesa. Cadastre em “Editar”."
                         />
                       )}
+                      {recorrentes.map((r) => (
+                        <tr key={`rec-${r.id_recorrente}`}>
+                          <Td className="font-medium text-gray-900 dark:text-gray-100">
+                            {r.descricao}
+                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                              todo mês
+                            </span>
+                          </Td>
+                          <Td className="text-gray-500">
+                            desde {competenciaBR(r.data_inicio)}
+                            {r.data_fim ? ` até ${competenciaBR(r.data_fim)}` : ''}
+                          </Td>
+                          <Td className="text-right font-semibold text-red-600 dark:text-red-400">
+                            −{brl(r.valor)}
+                          </Td>
+                        </tr>
+                      ))}
                       {despesas.map((d) => (
                         <tr key={d.id_despesa}>
                           <Td className="font-medium text-gray-900 dark:text-gray-100">

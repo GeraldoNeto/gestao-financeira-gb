@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { msgErroDB } from '@/lib/db-errors'
-import { parseValorBRL, hojeISO } from '@/lib/format'
+import { parseValorBRL, hojeISO, ultimoDiaMes } from '@/lib/format'
 import type { StatusRegistro } from '@/lib/database.types'
 
 async function usuarioAtual() {
@@ -15,28 +15,51 @@ async function usuarioAtual() {
   return { supabase, usuario: ((user?.user_metadata?.nome as string) || user?.email) ?? null }
 }
 
-/** Cadastra uma despesa (IPTU, manutenção, seguro…) vinculada a este aluguel.
- *  Vira um gasto de despesas_mes: descontado da divisão no mês da data. */
+/** Cadastra uma despesa vinculada a este aluguel — avulsa (um mês) ou recorrente
+ *  (todo mês). Ambas são descontadas da divisão. */
 export async function criarDespesaAluguel(idContrato: number, formData: FormData): Promise<void> {
   const descricao = String(formData.get('descricao') ?? '').trim()
-  const data = String(formData.get('data') ?? '').trim()
   const valor = parseValorBRL(String(formData.get('valor') ?? ''))
+  const recorrente = formData.get('recorrente') === 'on'
   const back = `/contratos/${idContrato}`
 
-  if (!descricao || !/^\d{4}-\d{2}-\d{2}$/.test(data) || valor === null || valor <= 0) {
-    redirect(`${back}?erro=${encodeURIComponent('Informe a descrição, a data e um valor válido.')}`)
+  if (!descricao || valor === null || valor <= 0) {
+    redirect(`${back}?erro=${encodeURIComponent('Informe a descrição e um valor válido.')}`)
   }
 
   const { supabase, usuario } = await usuarioAtual()
-  const { error } = await supabase.from('despesas_mes').insert({
-    id_contrato: idContrato,
-    competencia: `${data.slice(0, 7)}-01`,
-    data,
-    descricao,
-    valor,
-    usuario,
-  })
-  if (error) redirect(`${back}?erro=${encodeURIComponent(msgErroDB(error))}`)
+
+  if (recorrente) {
+    // "A partir de" (mês) e "até" (mês, opcional)
+    const de = String(formData.get('de') ?? '').trim()
+    const ate = String(formData.get('ate') ?? '').trim()
+    if (!/^\d{4}-\d{2}$/.test(de)) {
+      redirect(`${back}?erro=${encodeURIComponent('Informe o mês a partir do qual a despesa se repete.')}`)
+    }
+    const { error } = await supabase.from('despesas_recorrentes').insert({
+      id_contrato: idContrato,
+      descricao,
+      valor,
+      data_inicio: `${de}-01`,
+      data_fim: /^\d{4}-\d{2}$/.test(ate) ? ultimoDiaMes(ate) : null,
+      usuario,
+    })
+    if (error) redirect(`${back}?erro=${encodeURIComponent(msgErroDB(error))}`)
+  } else {
+    const data = String(formData.get('data') ?? '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      redirect(`${back}?erro=${encodeURIComponent('Informe a data da despesa.')}`)
+    }
+    const { error } = await supabase.from('despesas_mes').insert({
+      id_contrato: idContrato,
+      competencia: `${data.slice(0, 7)}-01`,
+      data,
+      descricao,
+      valor,
+      usuario,
+    })
+    if (error) redirect(`${back}?erro=${encodeURIComponent(msgErroDB(error))}`)
+  }
 
   revalidatePath('/', 'layout')
   redirect(back)
@@ -49,6 +72,19 @@ export async function excluirDespesaAluguel(id: number): Promise<{ error?: strin
     .delete()
     .eq('id_despesa', id)
     .select('id_despesa')
+  if (error) return { error: msgErroDB(error) }
+  if (!data?.length) return { error: 'Sem permissão para excluir.' }
+
+  revalidatePath('/', 'layout')
+}
+
+export async function excluirDespesaRecorrente(id: number): Promise<{ error?: string } | void> {
+  const { supabase } = await usuarioAtual()
+  const { data, error } = await supabase
+    .from('despesas_recorrentes')
+    .delete()
+    .eq('id_recorrente', id)
+    .select('id_recorrente')
   if (error) return { error: msgErroDB(error) }
   if (!data?.length) return { error: 'Sem permissão para excluir.' }
 

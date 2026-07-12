@@ -2,6 +2,7 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, DespesaMes } from '@/lib/database.types'
 import { brl, dataBR } from '@/lib/format'
+import { recorrentesNaCompetencia, competenciasEntre, type Recorrente } from '@/lib/despesas'
 
 type DB = SupabaseClient<Database>
 
@@ -272,7 +273,7 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
     qConta = qConta.lte('competencia', ate)
   }
 
-  const [{ data: cob }, { data: desp }, { data: div }, { data: pag }, { data: cta }, { data: contratos }, { data: pessoas }] =
+  const [{ data: cob }, { data: desp }, { data: div }, { data: pag }, { data: cta }, { data: contratos }, { data: pessoas }, { data: recorr }] =
     await Promise.all([
       qCob,
       qDesp,
@@ -281,6 +282,7 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
       qConta,
       supabase.from('vw_contratos').select('id_contrato, nome_imovel, unidade'),
       supabase.from('pessoas_fisicas').select('id_pessoa, nome'),
+      supabase.from('despesas_recorrentes').select('*'),
     ])
 
   const nomePessoa = new Map(
@@ -307,6 +309,28 @@ export async function dadosPrestacao(supabase: DB, de?: string, ate?: string): P
     descontar_de: d.id_contrato == null ? 'Todos (geral)' : rotuloContrato.get(d.id_contrato) ?? 'Aluguel',
   }))
   const despParaRateio = despRaw.map((d) => ({ id_contrato: d.id_contrato, valor: Number(d.valor) }))
+
+  // Despesas recorrentes: expandidas em cada mês do período
+  const recs = (recorr as Recorrente[] | null) ?? []
+  if (recs.length) {
+    const meses =
+      de && ate
+        ? competenciasEntre(de, ate)
+        : [...new Set([...recebidos.map((r) => r.competencia), ...despRaw.map((d) => d.competencia)])]
+    for (const mesComp of meses) {
+      for (const r of recorrentesNaCompetencia(recs, mesComp)) {
+        despesas.push({
+          competencia: mesComp,
+          descricao: `${r.descricao} (todo mês)`,
+          data_lancamento: r.data ?? mesComp,
+          valor: r.valor,
+          descontar_de:
+            r.id_contrato != null ? rotuloContrato.get(r.id_contrato) ?? 'Aluguel' : 'Aluguel',
+        })
+        despParaRateio.push({ id_contrato: r.id_contrato, valor: r.valor })
+      }
+    }
+  }
 
   const totalRecebido = round2(recebidos.reduce((s, r) => s + r.valor, 0))
   const totalDespesas = round2(despesas.reduce((s, d) => s + d.valor, 0))
@@ -490,19 +514,48 @@ async function relGastos(supabase: DB, de?: string, ate?: string): Promise<Relat
     .order('id_despesa')
   if (de) q = q.gte('competencia', de)
   if (ate) q = q.lte('competencia', ate)
-  const [{ data }, { data: contratos }] = await Promise.all([
+  const [{ data }, { data: contratos }, { data: recorr }] = await Promise.all([
     q,
     supabase.from('vw_contratos').select('id_contrato, nome_imovel, unidade'),
+    supabase.from('despesas_recorrentes').select('*'),
   ])
   const rotulo = new Map(
     ((contratos as { id_contrato: number; nome_imovel: string; unidade: string | null }[] | null) ?? []).map(
       (c) => [c.id_contrato, c.unidade ? `${c.nome_imovel} · ${c.unidade}` : c.nome_imovel],
     ),
   )
-  const linhas = ((data as DespesaMes[] | null) ?? []).map((d) => ({
-    ...d,
+  const avulsas = ((data as DespesaMes[] | null) ?? []).map((d) => ({
+    competencia: d.competencia,
+    descricao: d.descricao,
     descontar_de: d.id_contrato == null ? 'Todos (geral)' : rotulo.get(d.id_contrato) ?? 'Aluguel',
+    usuario: d.usuario,
+    valor: Number(d.valor),
   }))
+
+  // Recorrentes expandidas por mês
+  const recs = (recorr as Recorrente[] | null) ?? []
+  const recorrLinhas: typeof avulsas = []
+  if (recs.length) {
+    const meses =
+      de && ate
+        ? competenciasEntre(de, ate)
+        : [...new Set(avulsas.map((a) => a.competencia))]
+    for (const mesComp of meses) {
+      for (const r of recorrentesNaCompetencia(recs, mesComp)) {
+        recorrLinhas.push({
+          competencia: mesComp,
+          descricao: `${r.descricao} (todo mês)`,
+          descontar_de: r.id_contrato != null ? rotulo.get(r.id_contrato) ?? 'Aluguel' : 'Aluguel',
+          usuario: null,
+          valor: r.valor,
+        })
+      }
+    }
+  }
+
+  const linhas = [...avulsas, ...recorrLinhas].sort((a, b) =>
+    String(b.competencia).localeCompare(String(a.competencia)),
+  )
   return {
     titulo: 'Gastos do mês (despesas)',
     usaPeriodo: true,

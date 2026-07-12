@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnPrimary } from '@/components/ui'
+import { PageHeader, Tabela, Th, Td, VazioTabela } from '@/components/ui'
 import { ExcluirButton } from '@/components/excluir-button'
 import { brl, dataBR, competenciaBR } from '@/lib/format'
 import { FormContrato } from '../form'
-import { atualizarContrato, criarDespesaAluguel, excluirDespesaAluguel } from '../actions'
-import type { Contrato, DespesaMes } from '@/lib/database.types'
+import { DespesaAluguelForm } from './despesa-aluguel-form'
+import { atualizarContrato, excluirDespesaAluguel, excluirDespesaRecorrente } from '../actions'
+import type { Contrato, DespesaMes, DespesaRecorrente } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,7 @@ export default async function EditarContratoPage({
   if (!Number.isInteger(idNum)) notFound()
 
   const supabase = await createClient()
-  const [{ data }, { data: imoveis }, { data: despesasData }] = await Promise.all([
+  const [{ data }, { data: imoveis }, { data: avulsasData }, { data: recorrData }] = await Promise.all([
     supabase.from('contratos').select('*').eq('id_contrato', idNum).single(),
     supabase.from('imoveis').select('id_imovel, nome').order('nome'),
     supabase
@@ -31,6 +32,7 @@ export default async function EditarContratoPage({
       .eq('id_contrato', idNum)
       .order('data', { ascending: false, nullsFirst: false })
       .order('competencia', { ascending: false }),
+    supabase.from('despesas_recorrentes').select('*').eq('id_contrato', idNum).order('id_recorrente', { ascending: false }),
   ])
 
   const contrato = data as Contrato | null
@@ -40,8 +42,8 @@ export default async function EditarContratoPage({
     id: i.id_imovel,
     nome: i.nome,
   }))
-  const despesas = (despesasData as DespesaMes[] | null) ?? []
-  const totalDespesas = despesas.reduce((s, d) => s + Number(d.valor), 0)
+  const avulsas = (avulsasData as DespesaMes[] | null) ?? []
+  const recorrentes = (recorrData as DespesaRecorrente[] | null) ?? []
   const back = `/contratos/${idNum}`
 
   return (
@@ -60,14 +62,14 @@ export default async function EditarContratoPage({
         />
       </div>
 
-      {/* Despesas adicionais deste aluguel (IPTU, manutenção, seguro, IR…) */}
+      {/* Despesas deste aluguel */}
       <div>
         <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
           Despesas deste aluguel
         </h2>
         <p className="mb-4 text-sm text-gray-500">
           IPTU, manutenção, seguro, IR, taxas, contas de consumo e gastos eventuais. Cada despesa é
-          descontada da divisão no mês da data.
+          descontada da divisão. Marque <strong>“Repetir todo mês”</strong> para despesas recorrentes.
         </p>
 
         {sp.erro && (
@@ -76,36 +78,50 @@ export default async function EditarContratoPage({
           </p>
         )}
 
-        <form
-          action={criarDespesaAluguel.bind(null, contrato.id_contrato)}
-          className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
-        >
-          <label className="block min-w-56 flex-1">
-            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Descrição
-            </span>
-            <input
-              name="descricao"
-              required
-              className={inputClass}
-              placeholder="Ex.: IPTU, seguro, conserto do telhado"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Data</span>
-            <input type="date" name="data" required className={inputClass} />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Valor (R$)
-            </span>
-            <input name="valor" required className={`${inputClass} w-36`} placeholder="0,00" />
-          </label>
-          <button type="submit" className={btnPrimary}>
-            + Lançar despesa
-          </button>
-        </form>
+        <DespesaAluguelForm idContrato={contrato.id_contrato} />
 
+        {/* Recorrentes */}
+        <h3 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-gray-400">
+          Recorrentes (todo mês)
+        </h3>
+        <Tabela>
+          <thead>
+            <tr>
+              <Th>Descrição</Th>
+              <Th>Período</Th>
+              <Th className="text-right">Valor/mês</Th>
+              <Th className="text-right">Ações</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {recorrentes.length === 0 && (
+              <VazioTabela colunas={4} mensagem="Nenhuma despesa recorrente." />
+            )}
+            {recorrentes.map((r) => (
+              <tr key={r.id_recorrente} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                <Td className="font-medium text-gray-900 dark:text-gray-100">{r.descricao}</Td>
+                <Td className="text-gray-500">
+                  desde {competenciaBR(r.data_inicio)}
+                  {r.data_fim ? ` até ${competenciaBR(r.data_fim)}` : ''}
+                </Td>
+                <Td className="text-right font-semibold text-red-600 dark:text-red-400">
+                  −{brl(r.valor)}
+                </Td>
+                <Td className="text-right">
+                  <ExcluirButton
+                    action={excluirDespesaRecorrente.bind(null, r.id_recorrente)}
+                    confirmText={`Excluir a despesa recorrente "${r.descricao}" (${brl(r.valor)}/mês)?`}
+                  />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Tabela>
+
+        {/* Avulsas */}
+        <h3 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-gray-400">
+          Avulsas (um mês)
+        </h3>
         <Tabela>
           <thead>
             <tr>
@@ -116,15 +132,13 @@ export default async function EditarContratoPage({
             </tr>
           </thead>
           <tbody>
-            {despesas.length === 0 && (
-              <VazioTabela colunas={4} mensagem="Nenhuma despesa lançada para este aluguel." />
+            {avulsas.length === 0 && (
+              <VazioTabela colunas={4} mensagem="Nenhuma despesa avulsa." />
             )}
-            {despesas.map((d) => (
+            {avulsas.map((d) => (
               <tr key={d.id_despesa} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                 <Td className="font-medium text-gray-900 dark:text-gray-100">{d.descricao}</Td>
-                <Td className="text-gray-500">
-                  {d.data ? dataBR(d.data) : competenciaBR(d.competencia)}
-                </Td>
+                <Td className="text-gray-500">{d.data ? dataBR(d.data) : competenciaBR(d.competencia)}</Td>
                 <Td className="text-right font-semibold text-red-600 dark:text-red-400">
                   −{brl(d.valor)}
                 </Td>
@@ -144,16 +158,6 @@ export default async function EditarContratoPage({
                 </Td>
               </tr>
             ))}
-            {despesas.length > 0 && (
-              <tr className="border-t border-gray-200 dark:border-gray-700">
-                <Td className="font-medium text-gray-500">Total</Td>
-                <Td />
-                <Td className="text-right font-semibold text-red-600 dark:text-red-400">
-                  −{brl(totalDespesas)}
-                </Td>
-                <Td />
-              </tr>
-            )}
           </tbody>
         </Tabela>
       </div>

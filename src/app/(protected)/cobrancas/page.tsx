@@ -5,6 +5,7 @@ import { PageHeader, Tabela, Th, Td, VazioTabela, inputClass, btnPrimary, btnSec
 import { ExcluirButton } from '@/components/excluir-button'
 import { AcoesCobranca } from './acoes'
 import { gerarCobrancas, excluirCobranca, criarDespesa, excluirDespesa } from './actions'
+import { recorrentesNaCompetencia, type Recorrente } from '@/lib/despesas'
 import type { CobrancaView, DespesaMes } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ export default async function CobrancasPage({
   const competencia = `${mes}-01`
 
   const supabase = await createClient()
-  const [{ data }, { data: despesasData }] = await Promise.all([
+  const [{ data }, { data: despesasData }, { data: recorrData }] = await Promise.all([
     supabase
       .from('vw_cobrancas')
       .select('*')
@@ -31,9 +32,11 @@ export default async function CobrancasPage({
       .select('*')
       .eq('competencia', competencia)
       .order('id_despesa'),
+    supabase.from('despesas_recorrentes').select('*'),
   ])
   const cobrancas = (data as CobrancaView[] | null) ?? []
   const despesas = (despesasData as DespesaMes[] | null) ?? []
+  const recorrentes = recorrentesNaCompetencia((recorrData as Recorrente[] | null) ?? [], competencia)
 
   const previsto = cobrancas.reduce((s, c) => s + Number(c.valor), 0)
   const recebido = cobrancas.filter((c) => c.status === 'pago').reduce((s, c) => s + Number(c.valor), 0)
@@ -41,7 +44,9 @@ export default async function CobrancasPage({
   const atrasado = cobrancas
     .filter((c) => c.situacao === 'atrasado')
     .reduce((s, c) => s + Number(c.valor), 0)
-  const gastos = despesas.reduce((s, d) => s + Number(d.valor), 0)
+  const gastos =
+    despesas.reduce((s, d) => s + Number(d.valor), 0) +
+    recorrentes.reduce((s, r) => s + Number(r.valor), 0)
   const liquido = recebido - gastos
 
   // Aluguéis do mês (para vincular um gasto a um aluguel específico)
@@ -209,9 +214,35 @@ export default async function CobrancasPage({
             </tr>
           </thead>
           <tbody>
-            {despesas.length === 0 && (
+            {despesas.length === 0 && recorrentes.length === 0 && (
               <VazioTabela colunas={4} mensagem="Nenhum gasto lançado neste mês." />
             )}
+            {recorrentes.map((r) => (
+              <tr key={`rec-${r.id_recorrente}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                <Td className="font-medium text-gray-900 dark:text-gray-100">
+                  {r.descricao}
+                  <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                    todo mês
+                  </span>
+                </Td>
+                <Td>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    {r.id_contrato != null ? rotuloAluguel.get(r.id_contrato) ?? 'Aluguel' : 'Aluguel'}
+                  </span>
+                </Td>
+                <Td className="text-right font-semibold text-red-600 dark:text-red-400">
+                  −{brl(r.valor)}
+                </Td>
+                <Td className="text-right">
+                  <Link
+                    href={r.id_contrato != null ? `/contratos/${r.id_contrato}` : '/contratos'}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                  >
+                    No aluguel
+                  </Link>
+                </Td>
+              </tr>
+            ))}
             {despesas.map((d) => (
               <tr key={d.id_despesa} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                 <Td className="font-medium text-gray-900 dark:text-gray-100">{d.descricao}</Td>

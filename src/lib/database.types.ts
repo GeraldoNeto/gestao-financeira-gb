@@ -206,6 +206,17 @@ export type ContaIrmaos = {
   data_lancamento: string
 }
 
+export type DespesaRecorrente = {
+  id_recorrente: number
+  id_contrato: number
+  descricao: string
+  valor: number
+  data_inicio: string
+  data_fim: string | null
+  usuario: string | null
+  data_lancamento: string
+}
+
 export type PagamentoIrmao = {
   id_pagamento: number
   id_pessoa: number
@@ -381,6 +392,7 @@ export type Database = {
       cobrancas: TableShape<Cobranca>
       contrato_pessoa_percentual: TableShape<ContratoPessoaPercentual>
       despesas_mes: TableShape<DespesaMes>
+      despesas_recorrentes: TableShape<DespesaRecorrente>
       pagamentos_irmao: TableShape<PagamentoIrmao>
       contas_irmaos: TableShape<ContaIrmaos>
       reservas: TableShape<Reserva>

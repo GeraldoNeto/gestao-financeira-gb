@@ -21,7 +21,7 @@ export default async function EmpresasPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         titulo="Empresas"
-        descricao="Cadastro e saldos das empresas"
+        descricao="Cadastro e saldos das empresas (inclui as reservas)"
         acao={{ href: '/empresas/nova', label: '+ Nova empresa' }}
       />
 

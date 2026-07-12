@@ -91,7 +91,7 @@ export function Sidebar({
       {/* Sidebar desktop */}
       <aside className="hidden w-60 flex-col border-r border-gray-200 bg-white lg:flex dark:border-gray-800 dark:bg-gray-900">
         {brand}
-        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+        <nav className="flex-1 space-y-4 p-3">
           {secoes.map((secao, i) => (
             <div key={secao.titulo ?? i} className="space-y-1">
               {secao.titulo && (
@@ -118,7 +118,7 @@ export function Sidebar({
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setAberto(false)} />
           <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white shadow-xl dark:bg-gray-900">
             {brand}
-            <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+            <nav className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-3">
               {secoes.map((secao, i) => (
                 <div key={secao.titulo ?? i} className="space-y-1">
                   {secao.titulo && (

@@ -128,11 +128,11 @@ export default async function ReservaDetalhePage({
           <thead>
             <tr>
               <Th>Data e hora</Th>
-              <Th>Tipo</Th>
               <Th>Descrição</Th>
-              <Th className="text-right">Valor</Th>
               <Th>Usuário</Th>
-              <Th className="text-right">Saldo após</Th>
+              <Th className="text-right">Crédito</Th>
+              <Th className="text-right">Débito</Th>
+              <Th className="text-right">Saldo</Th>
             </tr>
           </thead>
           <tbody>
@@ -142,29 +142,14 @@ export default async function ReservaDetalhePage({
             {movimentos.map((m) => (
               <tr key={m.id_movimento} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                 <Td className="text-gray-500">{horaBR(m.criado_em)}</Td>
-                <Td>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      m.tipo === 'CREDITO'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                        : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
-                    }`}
-                  >
-                    {m.tipo === 'CREDITO' ? 'Crédito' : 'Débito'}
-                  </span>
-                </Td>
                 <Td className="font-medium text-gray-900 dark:text-gray-100">{m.descricao}</Td>
-                <Td
-                  className={`text-right font-semibold ${
-                    m.tipo === 'CREDITO'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {m.tipo === 'CREDITO' ? '+' : '−'}
-                  {brl(m.valor)}
-                </Td>
                 <Td className="text-gray-500">{m.usuario ?? '—'}</Td>
+                <Td className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                  {m.tipo === 'CREDITO' ? brl(m.valor) : brl(0)}
+                </Td>
+                <Td className="text-right font-semibold text-red-600 dark:text-red-400">
+                  {m.tipo === 'DEBITO' ? brl(m.valor) : brl(0)}
+                </Td>
                 <Td className="text-right font-semibold">{brl(m.saldo_apos)}</Td>
               </tr>
             ))}

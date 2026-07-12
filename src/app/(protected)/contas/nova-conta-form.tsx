@@ -49,12 +49,7 @@ export function NovaContaForm({ mes, irmaos }: { mes: string; irmaos: Irmao[] })
           <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Descrição da operação
           </span>
-          <input
-            name="descricao"
-            required
-            className={inputClass}
-            placeholder="Ex.: pagamento feito pela filha do Edson"
-          />
+          <input name="descricao" required className={inputClass} placeholder="Descrição da operação" />
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">

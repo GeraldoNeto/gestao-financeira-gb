@@ -79,7 +79,7 @@ export default async function ContasPage({
       <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Nova operação</h2>
       <p className="mb-3 text-sm text-gray-500">
         Quem <strong>pagou/adiantou</strong> fica a receber; quem se <strong>beneficiou</strong> fica
-        devendo. Ex.: a filha do Edson pagou a Ana em CAD → De: Edson, Para: Ana.
+        devendo.
       </p>
       <NovaContaForm mes={mes} irmaos={listaIrmaos} />
 

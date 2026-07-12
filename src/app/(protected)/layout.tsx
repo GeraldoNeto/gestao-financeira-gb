@@ -73,7 +73,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar secoes={secoes} nome={perfil?.nome ?? user.email ?? 'Usuário'} perfil={perfil?.perfil ?? 'consulta'} />
-      <main className="flex-1 overflow-auto p-4 pt-20 sm:p-6 lg:p-8 lg:pt-8">{children}</main>
+      <main className="min-w-0 flex-1 overflow-auto p-4 pt-20 sm:p-6 lg:p-8 lg:pt-8">{children}</main>
     </div>
   )
 }

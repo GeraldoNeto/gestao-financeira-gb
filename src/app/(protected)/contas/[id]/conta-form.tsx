@@ -1,25 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { Campo, ErroForm, inputClass, btnPrimary, btnSecondary } from '@/components/ui'
-import { brl } from '@/lib/format'
 import type { ContaEditState } from '../actions'
 
 type Irmao = { id: number; nome: string }
-
-function parseNum(s: string): number {
-  const n = Number(s.replace(/\./g, '').replace(',', '.'))
-  return Number.isFinite(n) ? n : NaN
-}
 
 export function ContaForm({
   idOrigem,
   idDestino,
   descricao,
-  moeda: moedaIni,
-  valorMoeda: valorIni,
-  cotacao: cotacaoIni,
+  valor,
   irmaos,
   voltarPara,
   action,
@@ -27,22 +19,12 @@ export function ContaForm({
   idOrigem: number
   idDestino: number
   descricao: string
-  moeda: string
-  valorMoeda: string
-  cotacao: string
+  valor: string
   irmaos: Irmao[]
   voltarPara: string
   action: (prev: ContaEditState, formData: FormData) => Promise<ContaEditState>
 }) {
   const [state, formAction, pending] = useActionState<ContaEditState, FormData>(action, undefined)
-  const [moeda, setMoeda] = useState(moedaIni)
-  const [valorMoeda, setValorMoeda] = useState(valorIni)
-  const [cotacao, setCotacao] = useState(cotacaoIni)
-
-  const isBRL = moeda.trim().toUpperCase() === 'BRL'
-  const vm = parseNum(valorMoeda)
-  const ct = isBRL ? 1 : parseNum(cotacao)
-  const brlPreview = Number.isFinite(vm) && Number.isFinite(ct) ? vm * ct : NaN
 
   return (
     <form
@@ -74,42 +56,9 @@ export function ContaForm({
         <input name="descricao" required defaultValue={descricao} className={inputClass} />
       </Campo>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Campo label="Moeda">
-          <input
-            name="moeda"
-            value={moeda}
-            onChange={(e) => setMoeda(e.target.value)}
-            className={inputClass}
-          />
-        </Campo>
-        <Campo label={`Valor ${isBRL ? '(R$)' : `(${moeda.toUpperCase()})`}`}>
-          <input
-            name="valor_moeda"
-            value={valorMoeda}
-            onChange={(e) => setValorMoeda(e.target.value)}
-            required
-            className={inputClass}
-          />
-        </Campo>
-        <Campo label="Cotação (R$)">
-          <input
-            name="cotacao"
-            value={isBRL ? '1' : cotacao}
-            onChange={(e) => setCotacao(e.target.value)}
-            disabled={isBRL}
-            className={`${inputClass} disabled:opacity-60`}
-          />
-        </Campo>
-        <div>
-          <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Valor em R$
-          </span>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-gray-800 dark:bg-gray-800 dark:text-emerald-400">
-            {Number.isFinite(brlPreview) ? brl(brlPreview) : '—'}
-          </div>
-        </div>
-      </div>
+      <Campo label="Valor (R$) *">
+        <input name="valor" required defaultValue={valor} className={inputClass} placeholder="0,00" />
+      </Campo>
 
       <ErroForm erro={state?.error} />
 

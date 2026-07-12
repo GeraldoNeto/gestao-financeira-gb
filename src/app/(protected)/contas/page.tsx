@@ -57,7 +57,7 @@ export default async function ContasPage({
     <div className="mx-auto max-w-5xl">
       <PageHeader
         titulo="Contas entre irmãos"
-        descricao="Compensações entre os irmãos (crédito/débito, com moeda e cotação) — o saldo entra no “A transferir” do mês"
+        descricao="Compensações entre os irmãos (crédito/débito) — o saldo entra no “A transferir” do mês"
       />
 
       <form method="get" className="mb-6 flex items-end gap-3">
@@ -129,14 +129,13 @@ export default async function ContasPage({
             <Th>De (credor)</Th>
             <Th>Para (devedor)</Th>
             <Th>Descrição</Th>
-            <Th>Moeda</Th>
-            <Th className="text-right">Valor em R$</Th>
+            <Th className="text-right">Valor</Th>
             <Th className="text-right">Ações</Th>
           </tr>
         </thead>
         <tbody>
           {contas.length === 0 && (
-            <VazioTabela colunas={6} mensagem="Nenhuma operação registrada neste mês." />
+            <VazioTabela colunas={5} mensagem="Nenhuma operação registrada neste mês." />
           )}
           {contas.map((c) => (
             <tr key={c.id_conta} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
@@ -145,11 +144,6 @@ export default async function ContasPage({
               </Td>
               <Td>{nomePorId.get(c.id_destino) ?? `#${c.id_destino}`}</Td>
               <Td>{c.descricao}</Td>
-              <Td className="text-gray-500">
-                {c.moeda === 'BRL'
-                  ? 'R$'
-                  : `${c.moeda} ${Number(c.valor_moeda).toLocaleString('pt-BR')} × ${Number(c.cotacao)}`}
-              </Td>
               <Td className="text-right font-semibold">{brl(c.valor_brl)}</Td>
               <Td className="text-right">
                 <span className="inline-flex items-center gap-1">

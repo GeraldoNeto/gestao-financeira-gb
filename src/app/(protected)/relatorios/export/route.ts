@@ -318,9 +318,8 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
     { header: 'Mês', key: 'mes', width: 12 },
     { header: 'De (credor)', key: 'credor', width: 22 },
     { header: 'Para (devedor)', key: 'devedor', width: 22 },
-    { header: 'Descrição', key: 'descricao', width: 32 },
-    { header: 'Moeda', key: 'moeda', width: 10 },
-    { header: 'Valor em R$', key: 'valor', width: 16 },
+    { header: 'Descrição', key: 'descricao', width: 36 },
+    { header: 'Valor', key: 'valor', width: 16 },
   ]
   estiloHeader(ws5.getRow(1))
   for (const c of d.contas) {
@@ -329,7 +328,6 @@ async function gerarXLSXPrestacao(d: DadosPrestacao): Promise<Uint8Array> {
       credor: c.credor,
       devedor: c.devedor,
       descricao: c.descricao,
-      moeda: c.moeda,
       valor: c.valor_brl,
     })
     row.getCell('valor').numFmt = MONEY_FMT

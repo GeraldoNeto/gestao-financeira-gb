@@ -21,27 +21,24 @@ function lerCampos(formData: FormData) {
   const idOrigem = Number(formData.get('id_origem'))
   const idDestino = Number(formData.get('id_destino'))
   const descricao = String(formData.get('descricao') ?? '').trim()
-  const moeda = (String(formData.get('moeda') ?? 'BRL').trim() || 'BRL').toUpperCase()
-  const valorMoeda = parseValorBRL(String(formData.get('valor_moeda') ?? ''))
-  const cotacaoRaw = String(formData.get('cotacao') ?? '').replace(',', '.').trim()
-  const cotacao = cotacaoRaw === '' ? 1 : Number(cotacaoRaw)
+  const valor = parseValorBRL(String(formData.get('valor') ?? ''))
 
   if (!Number.isInteger(idOrigem) || idOrigem <= 0) return { erro: 'Selecione quem pagou/adiantou.' }
   if (!Number.isInteger(idDestino) || idDestino <= 0) return { erro: 'Selecione a favor de quem.' }
   if (idOrigem === idDestino) return { erro: 'Os dois irmãos devem ser diferentes.' }
   if (!descricao) return { erro: 'Informe a descrição da operação.' }
-  if (valorMoeda === null || valorMoeda <= 0) return { erro: 'Informe um valor válido.' }
-  if (!Number.isFinite(cotacao) || cotacao <= 0) return { erro: 'Informe uma cotação válida.' }
+  if (valor === null || valor <= 0) return { erro: 'Informe um valor válido.' }
 
+  const v = round2(valor)
   return {
     dados: {
       id_origem: idOrigem,
       id_destino: idDestino,
       descricao,
-      moeda,
-      cotacao,
-      valor_moeda: valorMoeda,
-      valor_brl: round2(valorMoeda * cotacao),
+      moeda: 'BRL',
+      cotacao: 1,
+      valor_moeda: v,
+      valor_brl: v,
     },
   }
 }

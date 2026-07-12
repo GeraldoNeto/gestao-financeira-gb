@@ -34,7 +34,6 @@ export default async function EditarContaPage({
     id: p.id_pessoa,
     nome: p.nome,
   }))
-  const numBR = (n: number) => Number(n).toFixed(2).replace('.', ',')
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -47,9 +46,7 @@ export default async function EditarContaPage({
         idOrigem={conta.id_origem}
         idDestino={conta.id_destino}
         descricao={conta.descricao}
-        moeda={conta.moeda}
-        valorMoeda={numBR(conta.valor_moeda)}
-        cotacao={numBR(conta.cotacao)}
+        valor={Number(conta.valor_brl).toFixed(2).replace('.', ',')}
         irmaos={irmaos}
         voltarPara={voltarPara}
         action={atualizarConta.bind(null, conta.id_conta, mes)}
